@@ -1,0 +1,748 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap');
+ 
+/* Quitar el focus general */
+:focus {
+  outline: none;
+}
+
+/* Mostrar solo si el usuario navega con teclado */
+:focus-visible {
+  outline: 3px solid #99bdf7; /* azul clarito */
+  outline-offset: 2px;
+}
+
+
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+    font-family: 'Barlow Semi Condensed', sans-serif;
+}
+
+/* Encabezado */
+.header {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 30px;
+  overflow: hidden;
+}
+.logo {
+  height: 50px;
+  position: relative;
+  z-index: 2;
+ top: -40px;
+ left: -15px;
+}
+.icono-tema {
+  background: none;  
+  border: none;   
+  border-radius: 6px;;    
+  padding: 0;         
+  cursor: pointer;
+  position: relative;
+  top: -50px;
+  z-index: 2;
+}
+.icono-tema img {
+  height: 35px;
+  display: block; 
+}
+.olas {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  z-index: 1;
+  
+}
+
+.ola-bottom {
+  width: 100%;
+  overflow: hidden;
+  line-height: 0; /* elimina espacios en blanco */
+}
+
+.ola-bottom img {
+  width: 100%;
+  height: auto;   /* mantiene la proporción */
+  display: block;
+}
+
+
+/* Contenedor */
+
+.container {
+  max-width: 1100px;
+  margin: 60px auto;
+  padding: 0 20px;
+}
+
+.volver-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 25px;
+}
+
+.btn-regresar {
+  background: #e5e7eb; /* gris claro */
+  color: #111;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  max-width: 100%;
+  height: 45px;
+  display: flex;
+  margin-top: -20px;           /* icono + texto */
+  align-items: center;     /* centrado vertical */
+  gap: 8px;                /* espacio entre icono y texto */
+}
+
+
+.btn-regresar:active {
+  transform: scale(0.97); /* efecto hundido */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.btn-regresar svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+
+/* Perfil */
+.perfil h2 {
+  margin-bottom: 15px;
+  font-size: 27px;
+}
+.perfil-card {
+  background: #AFCBFF7D;
+  height: 240px;
+  border-radius: 20px;
+  padding: 20px 40px;
+  display: flex;
+  gap: 60px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.perfil-imagen {
+  position: relative;
+  width: 175px;
+  display: flex;
+  flex-direction: column; 
+  align-items: center;    
+}
+
+.perfil-imagen img {
+  width: 175px;
+  height: 175px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* contenedor de los botones debajo de la foto */
+.acciones-foto {
+  display: flex;
+  margin-bottom: -10px;
+  justify-content: center;
+  gap: 35px; 
+  width: 100%; 
+  margin-top: -10px;  
+}
+
+.acciones-foto button {
+  background: transparent; 
+  border: none;           
+  padding: 4px; 
+  border-radius: 5px;           
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, filter 0.2s; 
+}
+
+.eliminar-foto:active{
+  transform: scale(0.97); /* efecto hundido */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.editar-foto:active{
+  transform: scale(0.97); /* efecto hundido */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.acciones-foto img {
+  width: 27px;
+  height: 27px;
+}
+ 
+
+.perfil-info {
+  flex: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+.campo {
+  display: flex;
+  flex-direction: column;
+}
+.campo label {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.campo input {
+  padding: 8px;
+  border-radius: 8px;
+  color: #717171;
+  border: 1px solid #757575;
+  width: 90%;
+  max-width: 400px;
+  font-weight: 400;
+  font-size: 15px;
+}
+.campo small {
+  font-size: 13px;
+  color: #575656;
+  margin-top: 3px;
+}
+
+/* Botones */
+.botones {
+  margin-top: 15px;
+  display: flex;
+  gap: 15px;
+  width: 100%;
+  height: 45px;
+  justify-content: flex-end;
+}
+
+.botones button {
+  flex: 1;
+  max-width: 150px; 
+  height: 100%;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: medium;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease; /* animación suave */
+}
+
+/* Botón Cancelar */
+.cancelar {
+  background: #D64545;
+  color: #fff;
+  border: 2px solid #C00F0C;
+}
+
+.cancelar:active {
+  transform: scale(0.97); /* efecto hundido */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Botón Guardar */
+.guardar {
+  background: #276CDC;
+  color: #fff;
+}
+
+.guardar:active {
+  transform: scale(0.97); /* efecto hundido */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Progreso */
+
+.progreso {
+  margin-top: 30px;
+}
+.progreso h2 {
+  margin-bottom: 20px;
+  font-size: 27px;
+}
+.contenedor-progreso {
+  background: #c5dcff6e;
+  border-radius: 12px;
+  padding: 20px;
+}
+.grid-progreso {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+.card {
+  background: #AFCBFFA1;
+  padding: 20px;
+  border-radius: 12px;
+  height: 130px;
+}
+.card h3 {
+  margin-bottom: 10px;
+    font-size: 26px;
+}
+.barra {
+  background: #fff;
+  border-radius: 20px;
+  margin-top: 20px;
+  padding: 3px; /* pequeño espacio para que se vea el borde/sombra */
+  box-shadow: 0 0 6px rgba(105, 173, 246, 0.6); 
+  height: 22px;
+  overflow: hidden;
+}
+.barra div {
+  background: #007bff;
+  height: 100%;
+  width: 0; /* inicia vacía */
+  transition: width 1s ease-in-out;
+  border-radius: 20px;
+}
+
+.card span {
+  font-size: 18px;
+  font-weight: bold;
+  display: block;
+  margin-top: 5px;
+  text-align: right;
+}
+
+/* Modal */
+
+
+body {
+     font-family: "Barlow Semi Condensed", sans-serif;
+     background: #FFFFFF;
+ }
+ /* Fondo oscuro */
+ 
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* más alto que el header */
+}
+
+.modal-content {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 10px;
+  position: relative;
+  z-index: 10000; /* más alto que el overlay */
+}
+
+
+
+ /* Caja del modal */
+ 
+ .modal-box {
+     background: #fff;
+     border-radius: 12px;
+     padding: 20px;
+     width: 350px;
+     margin: 10px;
+     height: auto;
+     box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+     text-align: center;
+     transform: scale(0.9);
+     transition: opacity 0.3s ease, transform 0.3s ease;
+ }
+ 
+ .modal-overlay.show {
+     opacity: 1;
+     transform: scale(1);
+     display: flex;
+ }
+
+ /* Animación entrada */
+.modal-overlay.show .modal-box {
+  animation: bounceInSoft 0.5s ease forwards;
+}
+
+/* Animación salida */
+.modal-overlay.hide .modal-box {
+  animation: fadeOutSoft 0.4s ease forwards;
+}
+ 
+ .modal-box h2 {
+  margin-bottom: 20px; /* antes tenías 15px */
+  font-size: 21px;
+  font-weight: bold;
+}
+ 
+ /* Grid de avatares */
+ 
+ .avatar-grid {
+     display: grid;
+     grid-template-columns: repeat(3, 1fr);
+     gap: 12px;
+     margin-bottom: 20px;
+     justify-items: center;
+ }
+ 
+ .avatar-option {
+     width: 90px;
+     height: 90px;
+     border-radius: 12px;
+     border: 2px solid transparent;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     cursor: pointer;
+     transition: 0.2s;
+     background: #3478E6;
+ }
+ 
+ .avatar-option img {
+     width: 80px;
+     height: auto;
+ }
+ 
+
+ 
+ .avatar-option.selected {
+     border-color: #2563eb;
+     background: #dbeafe;
+ }
+ /* Botones */
+ 
+ .modal-buttons {
+     display: flex;
+     justify-content: space-between;
+     
+ }
+ 
+ .btn {
+     padding: 10px 14px;
+     border: none;
+     border-radius: 6px;
+     cursor: pointer;
+     transition: background-color 0.3s ease, transform 0.2s ease;
+     font-family: "Barlow Semi Condensed", sans-serif;
+     font-size: 18px;
+     font-weight: 500;
+     transition: all 0.3s ease;
+ }
+ 
+ .btn-cancel {
+     background: #d1d5db;
+ }
+ 
+ .btn-cancel:hover {
+     background: #797979;
+    color: #fff;
+    transform: scale(1.05);
+   box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+ }
+
+ .btn-cancel:active {
+  transform: scale(0.97); /* efecto hundido */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+ 
+ .btn-save {
+     background: #0070C1;
+     color: #fff;
+ }
+ 
+
+
+ .btn-save:active {
+  transform: scale(0.97); /* efecto hundido */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Animacion */
+@keyframes bounceInSoft {
+  0% { opacity: 0; transform: scale(0.8); }
+  60% { opacity: 1; transform: scale(1.05); }
+  80% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fadeOutSoft {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+
+.modal.show .modal-box {
+  animation: bounceInSoft 0.5s ease forwards;
+}
+
+.modal.hide .modal-box {
+  animation: fadeOutSoft 0.4s ease forwards;
+}
+
+.modal-eliminar {
+  position: fixed;
+  inset: 0; /* equivale a top:0; left:0; right:0; bottom:0 */
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* mayor que el header */
+}
+
+
+
+.modal-eliminar-content {
+  background: white;
+  padding: 20px 30px;
+  border-radius: 12px;
+  text-align: center;
+  min-width: 250px;
+}
+
+.modal-eliminar-content button {
+  margin: 10px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  background: #d1d5db;
+  border: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+
+.btn-confirm {
+  background: #D64545;
+  color: white;
+  border: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+
+
+.modal-eliminar.show .modal-eliminar-content {
+  animation: bounceInSoft 0.5s ease forwards;
+}
+
+.modal-eliminar.hide .modal-eliminar-content {
+  animation: fadeOutSoft 0.4s ease forwards;
+}
+
+
+
+/* Efectos hover solo en dispositivos con puntero */
+@media (hover: hover) {
+.btn-regresar:hover {
+  background: #d1d5db;
+  transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+}
+
+.acciones-foto button:hover {
+  transform: scale(1.2);         
+  filter: brightness(1.2);       
+}
+
+.cancelar:hover {
+  background: #C00F0C; /* tono más oscuro */
+  transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+  color: #fff;
+}
+
+.guardar:hover {
+  background: #1e56a0;/* tono más oscuro */
+  transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+  color: #fff;
+}
+
+ .avatar-option:hover {
+     border-color: #3b82f6;
+     background: #e0ecff;
+ }
+
+  .btn-save:hover {
+     background: #006ab5;
+     transform: scale(1.05);
+     box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+ }
+
+ .btn-cancel:hover {
+  background: #797979;
+  color: #fff;
+  transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+}
+
+.btn-confirm:hover {
+  background: #C00F0C;
+  transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+}
+
+}
+
+/* Ajustes para pantallas grandes */
+@media (min-width: 1700px) and (max-width: 1920px) {
+    .olas {
+        margin: 0px 0px -2px 0px;
+    }
+    .header {
+        height: 185px;
+    }
+    .logo {
+        height: 55px;
+        top: -50px;
+        left: -15px;
+    }
+    .icono-tema {
+        top: -60px;
+    }
+}
+
+
+/* Responsive movil */
+@media (max-width: 460px) {
+  .header {
+    position: relative;
+    height: 110px;      /* fija la altura, sin espacios extras */
+    padding: 10px 20px;
+    width: 100%; /* menos padding */
+    align-items: flex-start; /* alinea al inicio */
+    justify-content: space-between;
+    overflow: hidden;
+  
+  }
+  .logo-link{
+    height: 30px;
+  }
+
+
+
+    .logo {
+    height: 30px;
+    position: relative;
+    top: -2px;   /* sin desplazamiento negativo */
+    left: -10px;
+    z-index: 2;
+  }
+
+  .icono-tema {
+    position: relative;
+    top: -6px;
+    left: 10px;
+    z-index: 2;
+  }
+
+  .icono-tema img {
+    height: 23px; 
+           /* ícono más pequeño */
+  }
+
+    .olas{
+    
+    top: -7px;
+    width: 100%;
+    height: 90px;
+    transform: scale(1.2);
+    z-index: 1;
+    content: url(img/ola-header-movil.svg);
+    left: -22px;
+      
+    }
+
+   .ola-bottom img{
+    bottom: 0;
+    width: 100%;
+    height: 90px;
+    transform: scale(1.2);
+    z-index: 1;
+    left: -22px;  /* se adapta */
+  }
+
+  .perfil{
+    margin-top: 30px;
+  }
+
+  .perfil-card {
+    flex-direction: column;
+    height: auto;
+    gap: 25px;
+    padding: 20px;
+  }
+   
+  .campo label{
+    margin-bottom: 8px;
+  }
+
+  .campo input {
+    width: 100%;       /* inputs más anchos */
+    max-width: none;
+    padding: 12px 16px;
+    font-size: 16px;
+    /* inputs mas largos */
+    min-width: 275px;
+    margin-bottom: 10px;
+    
+  }
+
+  .campo small {
+    margin-top: -5px;
+    margin-bottom: 8px;
+  }
+
+  .botones{
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-top: 20px;
+  }
+
+  .acciones-foto{
+    margin-bottom: -8px;
+  }
+
+  .btn-regresar{
+    padding: 8px 12px;
+    margin-top: -40px;
+    gap: 6px;
+  }
+
+  .progreso {
+  margin-top: 60px;
+}
+
+
+  .card {
+    height: auto;
+    padding: 15px;
+  }
+
+  .perfil-info {
+    grid-template-columns: 1fr;
+  }
+  .grid-progreso {
+    grid-template-columns: 1fr;
+  }
+}

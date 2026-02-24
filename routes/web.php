@@ -59,6 +59,10 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 });
 
+Route::get('/perfil', function () {
+    return view('perfil');
+});
+
 Route::get('/contrasena_actualizada', function () {
     return view('contrasena_actualizada');
 });
@@ -80,3 +84,6 @@ Route::post('/api/clear-session-token', function () {
     session()->forget('auth_token');
     return response()->json(['success' => true]);
 });
+
+
+

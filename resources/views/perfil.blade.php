@@ -57,17 +57,17 @@
         <div class="perfil-info">
           <div class="campo">
             <label for="usuario">Usuario</label>
-    
-            <input type="text" id="usuario" name="name" value="Pepe Perez">
+
+            <input type="text" id="usuario" name="name" value="{{ $currentUser->name ?? '' }}">
           </div>
           <div class="campo">
             <label for="nombre">Nombre completo</label>
-            <input type="text" id="nombre" name="nombre" value="Johan Felipe Perez Acosta" disabled>
+            <input type="text" id="nombre" name="nombre" value="{{ $currentUser->nombre ?? $currentUser->name ?? '' }}" disabled>
             <small>Conectado vía OAuth no editable.</small>
           </div>
           <div class="campo">
             <label for="correo">Correo electrónico</label>
-            <input type="email" id="correo" name="correo" value="pepitoperez@gmail.com">
+            <input type="email" id="correo" name="correo" value="{{ $currentUser->email ?? '' }}">
           </div>
           <div class="campo input-pass">
             <label for="current_password">Contraseña actual</label>
@@ -133,16 +133,6 @@
         </div>
         <div class="card">
           <h3>JS</h3>
-          <div class="barra"><div></div></div>
-          <span></span>
-        </div>
-        <div class="card">
-          <h3>SQL</h3>
-          <div class="barra"><div></div></div>
-          <span></span>
-        </div>
-        <div class="card">
-          <h3>PHP</h3>
           <div class="barra"><div></div></div>
           <span></span>
         </div>

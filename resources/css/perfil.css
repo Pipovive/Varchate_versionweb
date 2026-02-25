@@ -409,6 +409,43 @@ body {
      transform: scale(1);
      display: flex;
  }
+/* Dark mode overrides */
+html.dark-mode {
+  background: #0b1220;
+  color: #e6eef8;
+}
+html.dark-mode body {
+  background: #0b1220;
+  color: #e6eef8;
+}
+html.dark-mode .header {
+  background: #061022;
+}
+html.dark-mode .perfil-card {
+  background: rgba(255,255,255,0.03);
+}
+html.dark-mode .card {
+  background: rgba(255,255,255,0.03);
+}
+html.dark-mode .campo input {
+  background: #0f1724;
+  color: #e6eef8;
+  border-color: #2a3340;
+}
+html.dark-mode .btn-regresar {
+  background: #1f2937;
+  color: #fff;
+}
+html.dark-mode .botones button.guardar {
+  background: #2563eb;
+}
+html.dark-mode .botones button.cancelar {
+  background: #b91c1c;
+}
+/* Icono del toggle: invertir colores cuando el tema oscuro está activo */
+.icono-tema img.dark-icon {
+  filter: invert(1) hue-rotate(180deg) saturate(0.9);
+}
 
  /* Animación entrada */
 .modal-overlay.show .modal-box {

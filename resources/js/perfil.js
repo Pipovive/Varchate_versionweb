@@ -95,9 +95,7 @@ const modulos = [
   { nombre: "INTRODUCCIÓN A LA PROGRAMACIÓN", progreso: 50 },
   { nombre: "HTML", progreso: 30 },
   { nombre: "CSS", progreso: 20 },
-  { nombre: "JS", progreso: 10 },
-  { nombre: "SQL", progreso: 0 },
-  { nombre: "PHP", progreso: 0 }
+  { nombre: "JS", progreso: 10 }
 ];
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -114,7 +112,42 @@ window.addEventListener("DOMContentLoaded", () => {
 
   cargarDatosUsuario();
   initPasswordToggles();
+  initDarkMode();
 });
+
+// Dark mode: toggle class on <html> and persist preference
+function initDarkMode() {
+  const btn = document.getElementById('btn-darkmode');
+  if (!btn) return;
+  const img = btn.querySelector('img');
+
+  const apply = (enabled) => {
+    const root = document.documentElement;
+    if (enabled) {
+      root.classList.add('dark-mode');
+      if (img) img.classList.add('dark-icon');
+    } else {
+      root.classList.remove('dark-mode');
+      if (img) img.classList.remove('dark-icon');
+    }
+  };
+
+  // Initialize from localStorage or system preference
+  let stored = null;
+  try { stored = localStorage.getItem('dark_mode'); } catch (e) { stored = null; }
+  if (stored === null) {
+    const prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    apply(prefers);
+  } else {
+    apply(stored === '1');
+  }
+
+  btn.addEventListener('click', () => {
+    const enabled = document.documentElement.classList.toggle('dark-mode');
+    if (img) img.classList.toggle('dark-icon');
+    try { localStorage.setItem('dark_mode', enabled ? '1' : '0'); } catch (e) {}
+  });
+}
 
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
@@ -222,8 +255,19 @@ async function cargarDatosUsuario() {
 
     if (res.ok) {
   const user = await parseJsonSafe(res) || {};
-  // El backend usa 'nombre' en varios endpoints; soportar ambos
-  document.getElementById("usuario").value = user.nombre || user.name || '';
+  // Recuperar datos guardados en localStorage como fallback (login guarda 'user')
+  let storedUser = null;
+  try { storedUser = JSON.parse(localStorage.getItem('user') || 'null'); } catch (e) { storedUser = null; }
+
+  // Preferir campos explícitos de 'username' o 'usuario', si existen; si no, usar 'name'
+  const usuarioEl = document.getElementById('usuario');
+  if (usuarioEl) {
+    usuarioEl.value = (
+      user.username || user.usuario || user.user_name || user.name ||
+      (storedUser && (storedUser.username || storedUser.usuario || storedUser.name)) ||
+      usuarioEl.value || ''
+    );
+  }
 
       if (user.avatar_id) {
         const avatarOption = modal.querySelector(`.avatar-option[data-id="${user.avatar_id}"]`);
@@ -231,6 +275,20 @@ async function cargarDatosUsuario() {
           avatarOption.classList.add("selected");
           perfilImg.src = avatarOption.querySelector("img").src;
         }
+      }
+      // Asegurar que el nombre completo y el correo se muestren con los datos de registro
+      const nombreEl = document.getElementById('nombre');
+      const correoEl = document.getElementById('correo');
+      if (nombreEl) {
+        // Mostrar nombre registrado si existe (campo 'nombre' o 'name'); si no, usar lo renderizado por Blade
+        nombreEl.value = (
+          user.nombre || user.full_name || user.name ||
+          (storedUser && (storedUser.nombre || storedUser.name || storedUser.full_name)) ||
+          nombreEl.value || ''
+        );
+      }
+      if (correoEl) {
+        correoEl.value = user.email || (storedUser && storedUser.email) || correoEl.value || '';
       }
     } else {
       // Intentar parsear JSON de error, si no, leer texto

@@ -35,36 +35,35 @@ Route::get('/enlace', function () {
     return view('enlace');
 });
 
-Route::get('/', function () {
-    return view('welcome');
-});
+    Route::get('/', function () {
+        return view('dashboard');
+    });
 
 // ===============================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ===============================
 
-Route::get('/modulos', function () {
-    return view('modulos');
-})->name('modulos');
+Route::middleware('auth')->group(function () {
+    Route::get('/modulos', function () {
+        return view('modulos');
+    })->name('modulos');
 
-Route::get('/modulo', function () {
-    return view('modulo');
-})->name('modulo');
+    Route::get('/modulo', function () {
+        return view('modulo');
+    })->name('modulo');
 
-Route::get('/modulo/{slug}', function ($slug) {
-    return view('modulo', ['slug' => $slug]);
-})->name('modulo.detalle');
+    Route::get('/modulo/{slug}', function ($slug) {
+        return view('modulo', ['slug' => $slug]);
+    })->name('modulo.detalle');
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-});
 
-Route::get('/perfil', function () {
-    return view('perfil');
-});
+    Route::get('/perfil', function () {
+        return view('perfil');
+    });
 
-Route::get('/contrasena_actualizada', function () {
-    return view('contrasena_actualizada');
+    Route::get('/contrasena_actualizada', function () {
+        return view('contrasena_actualizada');
+    });
 });
 
 // ===============================

@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const token = localStorage.getItem('auth_token');
     
     if (!token) {
-        window.location.href = '/login';
+        redirigirALogin();
         return;
     }
     
@@ -24,6 +24,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Cargar datos del módulo desde la API
     await cargarDatosModulo(moduleSlug);
 });
+
+// Función auxiliar para redirigir a login de manera consistente
+function redirigirALogin(params = '') {
+    // Construir URL absoluta sin barras dobles
+    const baseUrl = window.location.origin;
+    const loginUrl = params ? `${baseUrl}/login${params}` : `${baseUrl}/login`;
+    window.location.href = loginUrl;
+}
 
 function obtenerSlugDeURL() {
     // Ejemplo: /modulo/introduccion-a-html
@@ -58,7 +66,13 @@ async function verificarTokenEnSegundoPlano(token) {
                 cargarDatosUsuario();
             }
         } else {
-            mostrarMensajeSesionExpirada();
+            // Token inválido, limpiar y redirigir
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('user_nombre');
+            localStorage.removeItem('user_apellido');
+            localStorage.removeItem('user_email');
+            redirigirALogin('?expired=true');
         }
     } catch (error) {
         console.error('Error verificando token:', error);
@@ -86,7 +100,7 @@ function mostrarMensajeSesionExpirada() {
     `;
     mensaje.innerHTML = `
         <span>⚠️ Tu sesión ha expirado</span>
-        <button onclick="renovarSesion()" style="
+        <button onclick="redirigirALogin('?expired=true')" style="
             background: white;
             color: #f44336;
             border: none;
@@ -105,9 +119,8 @@ function mostrarMensajeSesionExpirada() {
     }, 10000);
 }
 
-window.renovarSesion = function() {
-    window.location.href = '/login?expired=true';
-};
+// Hacer la función global para que pueda ser llamada desde el HTML
+window.redirigirALogin = redirigirALogin;
 
 function cargarDatosUsuario() {
     const nombre = localStorage.getItem('user_nombre') || 'Usuario';
@@ -260,12 +273,51 @@ async function cargarLeccionesModulo(moduloId, moduleSlug) {
         });
         
         if (response.ok) {
-            leccionesModulo = await response.json();
-            console.log('Lecciones cargadas:', leccionesModulo);
-            renderizarLecciones(leccionesModulo);
+            const data = await response.json();
+            console.log('📚 Lecciones cargadas (raw):', data);
+            
+            let leccionesArray = [];
+            
+            // Verificar la estructura de la respuesta
+            if (Array.isArray(data)) {
+                leccionesArray = data;
+            } else if (data.data && Array.isArray(data.data)) {
+                leccionesArray = data.data;
+            } else if (data.lecciones && Array.isArray(data.lecciones)) {
+                leccionesArray = data.lecciones;
+            } else if (data && typeof data === 'object') {
+                // Podría ser que las lecciones estén en una propiedad
+                for (let key in data) {
+                    if (Array.isArray(data[key])) {
+                        leccionesArray = data[key];
+                        console.log(`📦 Lecciones encontradas en propiedad "${key}":`, leccionesArray);
+                        break;
+                    }
+                }
+                
+                // Si no encontró array, intentar con Object.values
+                if (leccionesArray.length === 0) {
+                    leccionesArray = Object.values(data).filter(item => item && typeof item === 'object' && item.id);
+                }
+            }
+            
+            // Filtrar lecciones que no tengan ID
+            leccionesArray = leccionesArray.filter(leccion => {
+                if (!leccion || !leccion.id) {
+                    console.warn('Lección sin ID ignorada:', leccion);
+                    return false;
+                }
+                return true;
+            });
+            
+            console.log('✅ Lecciones procesadas:', leccionesArray);
+            leccionesModulo = leccionesArray;
+            renderizarLecciones(leccionesArray);
         }
     } catch (error) {
         console.error('Error cargando lecciones:', error);
+        leccionesModulo = [];
+        renderizarLecciones([]);
     }
 }
 
@@ -274,6 +326,8 @@ async function cargarProgresoModulo(moduloId) {
     const token = localStorage.getItem('auth_token');
     
     try {
+        console.log('📥 Cargando progreso para módulo:', moduloId);
+        
         // Intentar cargar progreso de módulos con progreso
         const response = await fetch(`${apiUrl}/modulos-con-progreso`, {
             headers: {
@@ -283,12 +337,36 @@ async function cargarProgresoModulo(moduloId) {
         });
         
         if (response.ok) {
-            const modulosConProgreso = await response.json();
-            progresoModulo = modulosConProgreso.find(m => m.id === moduloId);
-            console.log('Progreso del módulo:', progresoModulo);
+            const data = await response.json();
+            console.log('📊 Progreso cargado (raw):', data);
+            
+            // Verificar si la respuesta es un array o un objeto
+            if (data.success && Array.isArray(data.data)) {
+                progresoModulo = data.data.find(m => m.id === moduloId);
+                console.log('🎯 Progreso del módulo actual:', progresoModulo);
+            } else if (Array.isArray(data)) {
+                progresoModulo = data.find(m => m.id === moduloId);
+            } else if (data && typeof data === 'object') {
+                // Si es un objeto, intentar extraer de alguna propiedad
+                if (data.modulos && Array.isArray(data.modulos)) {
+                    progresoModulo = data.modulos.find(m => m.id === moduloId);
+                } else if (data.progreso && Array.isArray(data.progreso)) {
+                    progresoModulo = data.progreso.find(m => m.id === moduloId);
+                } else {
+                    // Si es un objeto con el progreso del módulo actual
+                    progresoModulo = data.id === moduloId ? data : null;
+                }
+            }
+            
+            console.log('✅ Progreso procesado:', progresoModulo);
             
             if (progresoModulo) {
-                actualizarProgreso(progresoModulo.porcentaje_completado || 0);
+                actualizarProgreso(progresoModulo.progreso || 0);
+                
+                // Si ya tenemos lecciones cargadas, volver a renderizarlas con el progreso actualizado
+                if (window.leccionesOrdenadas && window.leccionesOrdenadas.length > 0) {
+                    renderizarLecciones(window.leccionesOrdenadas);
+                }
             }
         }
     } catch (error) {
@@ -342,29 +420,67 @@ function renderizarLecciones(lecciones) {
     
     if (!sidebar || !lessonsContainer) return;
     
+    // Verificar que lecciones sea un array
+    if (!Array.isArray(lecciones) || lecciones.length === 0) {
+        console.warn('No hay lecciones para mostrar');
+        sidebar.innerHTML = '<button class="active" data-tipo="intro">INTRODUCCIÓN</button>';
+        lessonsContainer.innerHTML = '<p class="no-lessons">No hay lecciones disponibles en este módulo</p>';
+        return;
+    }
+    
     // Ordenar lecciones por orden
     const leccionesOrdenadas = [...lecciones].sort((a, b) => (a.orden || 0) - (b.orden || 0));
     
-    // 1. Renderizar sidebar
+    // Guardar las lecciones ordenadas globalmente para usarlas después
+    window.leccionesOrdenadas = leccionesOrdenadas;
+    
+    // ===== Obtener datos de progreso REALES =====
+    const leccionesCompletadas = progresoModulo?.lecciones_vistas || 0;
+    const totalLeccionesReales = leccionesOrdenadas.length; // Usar el length real, no el de BD
+    
+    console.log('📊 Renderizando lecciones:', {
+        leccionesCompletadas: leccionesCompletadas,
+        totalLecciones: totalLeccionesReales,
+        evaluacionAprobada: progresoModulo?.evaluacion_aprobada,
+        progresoModulo: progresoModulo
+    });
+    
+    // 1. Renderizar sidebar (BOTONES FUNCIONALES)
     let sidebarHTML = '<button class="active" data-tipo="intro" data-leccion-id="intro">INTRODUCCIÓN</button>';
     
     leccionesOrdenadas.forEach((leccion, index) => {
-        // Verificar si la lección está desbloqueada (primera lección siempre disponible, 
-        // o si la lección anterior fue vista)
-        const estaDesbloqueada = index === 0 || (progresoModulo && leccionesModulo[index - 1]?.vista);
-        const claseBloqueo = estaDesbloqueada ? '' : 'locked';
-        const iconoLlave = estaDesbloqueada ? '' : '<img src="/images/Lock.svg" alt="Bloqueado" class="icon-lock">';
+        // ===== LÓGICA DE DESBLOQUEO CORREGIDA =====
+        // La primera lección (índice 0) siempre está desbloqueada
+        // Las siguientes se desbloquean cuando se completa la anterior
+        const estaDesbloqueada = index === 0 || index < leccionesCompletadas;
+        
+        // Si la evaluación ya está aprobada, TODAS las lecciones están desbloqueadas
+        const todasDesbloqueadas = progresoModulo?.evaluacion_aprobada === true;
+        const desbloqueadaFinal = todasDesbloqueadas ? true : estaDesbloqueada;
+        
+        const claseBloqueo = desbloqueadaFinal ? '' : 'locked';
+        const iconoLlave = desbloqueadaFinal ? '' : '<img src="/images/Lock.svg" alt="Bloqueado" class="icon-lock">';
+        
+        // Marcar como vista si ya fue completada
+        const claseVista = index < leccionesCompletadas ? 'vista' : '';
         
         sidebarHTML += `
-            <button class="${claseBloqueo}" data-leccion-id="${leccion.id}" data-leccion-slug="${leccion.slug}">
+            <button class="${claseBloqueo} ${claseVista}" data-leccion-id="${leccion.id}" data-leccion-slug="${leccion.slug}" data-leccion-index="${index}">
                 LECCIÓN ${index + 1} ${iconoLlave}
             </button>
         `;
+        
+        console.log(`Lección ${index + 1}:`, {
+            id: leccion.id,
+            titulo: leccion.titulo,
+            desbloqueada: desbloqueadaFinal,
+            completada: index < leccionesCompletadas
+        });
     });
     
-    // Verificar si todas las lecciones están vistas para desbloquear evaluación
-    const todasLeccionesVistas = leccionesOrdenadas.every(leccion => leccion.vista);
-    const evaluacionDesbloqueada = todasLeccionesVistas || (progresoModulo?.lecciones_vistas === leccionesOrdenadas.length);
+    // Verificar si todas las lecciones están completadas para desbloquear evaluación
+    const todasLeccionesCompletadas = leccionesCompletadas >= leccionesOrdenadas.length;
+    const evaluacionDesbloqueada = todasLeccionesCompletadas || progresoModulo?.evaluacion_aprobada === true;
     
     sidebarHTML += `
         <button class="${evaluacionDesbloqueada ? '' : 'locked'}" data-tipo="evaluacion" data-evaluacion-id="${moduloActual?.id || 1}">
@@ -374,12 +490,11 @@ function renderizarLecciones(lecciones) {
     
     sidebar.innerHTML = sidebarHTML;
     
-    // 2. Renderizar lista de lecciones en contenido
+    // 2. Renderizar lista de lecciones en contenido (SOLO VISUALES, SIN EVENTOS)
     let lessonsHTML = '';
     
     leccionesOrdenadas.forEach((leccion, index) => {
         // Extraer un párrafo corto del contenido para la descripción
-        // Si el contenido es HTML, extraemos texto plano
         let descripcionCorta = '';
         if (leccion.contenido) {
             // Eliminar etiquetas HTML y tomar los primeros 100 caracteres
@@ -389,72 +504,294 @@ function renderizarLecciones(lecciones) {
             descripcionCorta = 'Contenido de la lección';
         }
         
-        lessonsHTML += `
-            <div class="lesson" data-leccion-id="${leccion.id}" data-leccion-slug="${leccion.slug}">
-                <i class="fa-regular fa-file-lines"></i>
-                <div>
-                    <strong>Lección ${index + 1} – ${leccion.titulo}</strong>
-                    <p>${descripcionCorta}</p>
-                </div>
-            </div>
-        `;
-    });
+        // Marcar visualmente las lecciones completadas
+   const claseCompletada = index < leccionesCompletadas ? 'completed' : '';
     
-    // Agregar evaluación
     lessonsHTML += `
-        <div class="lesson evaluation" data-tipo="evaluacion" data-evaluacion-id="${moduloActual?.id || 1}">
+        <div class="lesson ${claseCompletada}" 
+             data-leccion-id="${leccion.id}" 
+             data-leccion-slug="${leccion.slug}" 
+             data-leccion-index="${index}">
             <i class="fa-regular fa-file-lines"></i>
             <div>
-                <strong>Evaluación del Módulo</strong>
-                <p>${moduloActual?.descripcion_larga ? 
-                    moduloActual.descripcion_larga.substring(0, 100) + '...' : 
-                    'Pon a prueba tus conocimientos del módulo'}</p>
+                <strong>Lección ${index + 1} – ${leccion.titulo || 'Sin título'}</strong>
+                <p>${descripcionCorta}</p>
+                <!-- ELIMINADO: el span con el texto "Completada" -->
             </div>
         </div>
     `;
+});
+    
+    // Agregar evaluación (SOLO VISUAL)
+        const evaluacionAprobada = progresoModulo?.evaluacion_aprobada || false;
+
+        lessonsHTML += `
+            <div class="lesson evaluation ${evaluacionAprobada ? 'completed' : ''}" 
+                data-tipo="evaluacion" 
+                data-evaluacion-id="${moduloActual?.id || 1}">
+                <i class="fa-regular fa-file-lines"></i>
+                <div>
+                    <strong>Evaluación del Módulo</strong>
+                    <p>${moduloActual?.descripcion_larga ? 
+                        moduloActual.descripcion_larga.substring(0, 100) + '...' : 
+                        'Pon a prueba tus conocimientos del módulo'}</p>
+                </div>
+            </div>
+        `;
     
     lessonsContainer.innerHTML = lessonsHTML;
     
-    // Agregar event listeners a las lecciones
-    document.querySelectorAll('.lesson').forEach(lesson => {
-        lesson.addEventListener('click', () => {
-            const leccionId = lesson.dataset.leccionId;
-            const leccionSlug = lesson.dataset.leccionSlug;
-            const tipo = lesson.dataset.tipo;
-            
-            if (tipo === 'evaluacion') {
-                cargarEvaluacion(lesson.dataset.evaluacionId);
-            } else if (leccionSlug) {
-                cargarLeccion(moduloActual.slug, leccionSlug);
-            }
-        });
+    // Agregar event listeners SOLO a los botones del sidebar
+    document.querySelectorAll('.sidebar button').forEach(btn => {
+        // Remover listeners anteriores para evitar duplicados
+        btn.replaceWith(btn.cloneNode(true));
     });
     
-    // Agregar event listeners a los botones del sidebar
+    // Volver a seleccionar los botones después de reemplazarlos
     document.querySelectorAll('.sidebar button').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
             const leccionId = btn.dataset.leccionId;
             const leccionSlug = btn.dataset.leccionSlug;
+            const leccionIndex = parseInt(btn.dataset.leccionIndex);
             const tipo = btn.dataset.tipo;
+            
+            console.log('Click en sidebar button:', { tipo, leccionId, leccionSlug, leccionIndex });
+            
+            // Verificar si el botón está bloqueado visualmente
+            if (btn.classList.contains('locked')) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (tipo === 'evaluacion') {
+                    mostrarMensajeBloqueado('Completa todas las lecciones para acceder a la evaluación');
+                } else {
+                    const leccionesCompletadas = progresoModulo?.lecciones_vistas || 0;
+                    if (leccionesCompletadas === 0 && leccionIndex > 0) {
+                        mostrarMensajeBloqueado('Completa la primera lección para continuar');
+                    } else {
+                        mostrarMensajeBloqueado('Completa la lección anterior para desbloquear esta');
+                    }
+                }
+                return;
+            }
             
             // Marcar como activo
             document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             
             if (tipo === 'intro') {
+                console.log('Mostrando introducción');
                 mostrarIntroduccion();
             } else if (tipo === 'evaluacion') {
+                console.log('Cargando evaluación');
                 cargarEvaluacion(btn.dataset.evaluacionId);
             } else if (leccionSlug && moduloActual) {
+                console.log('Cargando lección:', leccionSlug);
                 cargarLeccion(moduloActual.slug, leccionSlug);
             }
         });
     });
 }
 
+// Función para mostrar mensaje de contenido bloqueado
+function mostrarMensajeBloqueado(mensaje = 'Completa el contenido anterior para desbloquear este') {
+    if (document.getElementById('locked-message')) return;
+    
+    const mensajeEl = document.createElement('div');
+    mensajeEl.id = 'locked-message';
+    mensajeEl.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #ff9800;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        z-index: 9999;
+        font-weight: bold;
+        animation: slideUp 0.3s ease;
+        text-align: center;
+        min-width: 300px;
+    `;
+    mensajeEl.innerHTML = `🔒 ${mensaje}`;
+    
+    document.body.appendChild(mensajeEl);
+    
+    setTimeout(() => {
+        if (mensajeEl.parentNode) {
+            mensajeEl.remove();
+        }
+    }, 3000);
+}
+
+// Función para mostrar mensaje de éxito
+function mostrarMensajeExito(mensaje) {
+    if (document.getElementById('success-message')) return;
+    
+    const mensajeEl = document.createElement('div');
+    mensajeEl.id = 'success-message';
+    mensajeEl.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #4caf50;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        z-index: 9999;
+        font-weight: bold;
+        animation: slideUp 0.3s ease;
+        text-align: center;
+        min-width: 300px;
+    `;
+    mensajeEl.innerHTML = `✅ ${mensaje}`;
+    
+    document.body.appendChild(mensajeEl);
+    
+    setTimeout(() => {
+        if (mensajeEl.parentNode) {
+            mensajeEl.remove();
+        }
+    }, 2000);
+}
+
+// Agregar estilos globales UNA SOLA VEZ
+if (!document.getElementById('animation-styles')) {
+    const styleElement = document.createElement('style');
+    styleElement.id = 'animation-styles';
+    styleElement.textContent = `
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 20px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+        .no-lessons {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+        /* Estilos para las lecciones visuales */
+        .lessons .lesson {
+            cursor: default !important;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+          /* Botón de INTRODUCCIÓN (estilo base) */
+        .sidebar button[data-tipo="intro"] {
+            background-color: #FFFFFF;
+            color: #616461;
+        }
+        
+        /* Botón de INTRODUCCIÓN ACTIVO */
+        .sidebar button[data-tipo="intro"].active {
+            background-color: #0099FF !important;
+            color: #FFFFFF !important;
+        }
+
+        .sidebar button.vista {
+            background-color: #FFFFFF;
+            color: #616461;
+        }
+
+          .sidebar button.active {
+            background-color: #0099FF !important;
+            color: #FFFFFF !important;
+            border-left: none; /* Quitamos el borde cuando está activo */
+        }
+        
+        /* Botón ACTIVO que además es VISTO - prevalece el azul */
+        .sidebar button.active.vista {
+            background-color: #0099FF !important;
+            color: #FFFFFF !important;
+            border-left: none;
+        }
+        .lessons .lesson.completed {
+            background-color: #f0fff0;
+            border-color: #4caf50;
+        }
+      
+        .lessons .lesson.evaluation.locked {
+            opacity: 0.6;
+            background-color: #f5f5f5;
+        }
+    `;
+    document.head.appendChild(styleElement);
+}
+
 // ===============================
 // CARGA DE CONTENIDO ESPECÍFICO
 // ===============================
+
+function limpiarContenidoHTML(html) {
+    if (!html) return '<p>Contenido no disponible</p>';
+    
+    let contenidoLimpio = html;
+    
+    // Extraer contenido del body (pero conservar estilos)
+    const bodyRegex = /<body[^>]*>([\s\S]*?)<\/body>/i;
+    const bodyMatch = contenidoLimpio.match(bodyRegex);
+    if (bodyMatch && bodyMatch[1]) {
+        contenidoLimpio = bodyMatch[1];
+    }
+    
+    // Extraer estilos del head y agregarlos al contenido
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    let styles = '';
+    let styleMatch;
+    while ((styleMatch = styleRegex.exec(html)) !== null) {
+        styles += styleMatch[0];
+    }
+    
+    // Si hay estilos, agregarlos al principio del contenido
+    if (styles) {
+        contenidoLimpio = styles + contenidoLimpio;
+    }
+    
+    // Eliminar metadatos y doctype (no afectan estilos)
+    contenidoLimpio = contenidoLimpio.replace(/<meta[^>]*>/gi, '');
+    contenidoLimpio = contenidoLimpio.replace(/<!DOCTYPE[^>]*>/i, '');
+    
+    // Eliminar etiquetas html y head vacías
+    contenidoLimpio = contenidoLimpio.replace(/<\/?html[^>]*>/gi, '');
+    contenidoLimpio = contenidoLimpio.replace(/<\/?head[^>]*>/gi, '');
+    
+    return contenidoLimpio;
+}
+
+function mostrarContenidoNoDisponible() {
+    const leccionContent = document.getElementById('leccionContent');
+    if (leccionContent) {
+        leccionContent.innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <h3>Contenido no disponible</h3>
+                <p>Lo sentimos, no se pudo cargar el contenido de esta lección.</p>
+                <button onclick="window.location.reload()" style="
+                    background: #0099FF;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    margin-top: 20px;
+                ">Reintentar</button>
+            </div>
+        `;
+    }
+}
 
 async function cargarLeccion(moduloSlug, leccionSlug) {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
@@ -463,6 +800,15 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
     mostrarSpinner(true);
     
     try {
+        console.log('📖 Cargando lección:', { moduloSlug, leccionSlug });
+        
+        // Verificar que tenemos el módulo actual
+        if (!moduloActual || !moduloActual.id) {
+            console.error('No hay módulo actual');
+            mostrarSpinner(false);
+            return;
+        }
+        
         const response = await fetch(`${apiUrl}/modulos/${moduloSlug}/lecciones/${leccionSlug}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -471,8 +817,36 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
         });
         
         if (response.ok) {
-            const leccion = await response.json();
-            console.log('Lección cargada:', leccion);
+            const data = await response.json();
+            console.log('✅ Respuesta completa:', data);
+            
+            // Extraer la lección de la propiedad 'leccion'
+            let leccion = null;
+            
+            if (data.leccion) {
+                leccion = data.leccion;
+                console.log('📦 Lección extraída de propiedad leccion:', leccion);
+            } else if (data.data) {
+                leccion = data.data;
+            } else if (data.id) {
+                leccion = data;
+            }
+            
+            if (!leccion || !leccion.id) {
+                console.error('❌ No se pudo extraer la lección con ID:', leccion);
+                console.error('Estructura recibida:', data);
+                mostrarContenidoNoDisponible();
+                mostrarSpinner(false);
+                return;
+            }
+            
+            console.log('✅ Lección procesada - ID:', leccion.id, 'Título:', leccion.titulo);
+            
+            // Limpiar el contenido HTML
+            let contenidoLimpio = leccion.contenido || '<p>Contenido no disponible</p>';
+            contenidoLimpio = limpiarContenidoHTML(contenidoLimpio);
+            
+            console.log('📄 Contenido limpio (primeros 200 chars):', contenidoLimpio.substring(0, 200) + '...');
             
             // Mostrar contenido de la lección
             const introduccionContent = document.getElementById('introduccionContent');
@@ -481,18 +855,24 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
             if (introduccionContent) introduccionContent.style.display = 'none';
             if (leccionContent) {
                 leccionContent.style.display = 'block';
-                // El contenido ya viene en HTML desde la BD, lo insertamos directamente
-                leccionContent.innerHTML = leccion.contenido || '<p>Contenido no disponible</p>';
+                leccionContent.innerHTML = contenidoLimpio;
             }
             
-            // Marcar lección como vista (si no está ya marcada)
-            await marcarLeccionVista(moduloActual.id, leccion.id);
+            // Encontrar el índice de la lección actual
+            if (window.leccionesOrdenadas) {
+                const indiceActual = window.leccionesOrdenadas.findIndex(l => l.id === leccion.id);
+                console.log('📍 Índice de lección actual:', indiceActual);
+            }
             
         } else {
             console.error('Error cargando lección:', response.status);
+            const errorText = await response.text();
+            console.error('Detalle del error:', errorText);
+            mostrarContenidoNoDisponible();
         }
     } catch (error) {
         console.error('Error cargando lección:', error);
+        mostrarContenidoNoDisponible();
     } finally {
         mostrarSpinner(false);
     }
@@ -503,7 +883,9 @@ async function marcarLeccionVista(moduloId, leccionId) {
     const token = localStorage.getItem('auth_token');
     
     try {
-        await fetch(`${apiUrl}/modulos/${moduloId}/lecciones/${leccionId}/marcar-vista`, {
+        console.log('📝 Marcando lección como vista:', { moduloId, leccionId });
+        
+        const response = await fetch(`${apiUrl}/modulos/${moduloId}/lecciones/${leccionId}/marcar-vista`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -512,8 +894,25 @@ async function marcarLeccionVista(moduloId, leccionId) {
             }
         });
         
-        // Recargar progreso
-        await cargarProgresoModulo(moduloId);
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Respuesta de marcar vista:', data);
+            
+            // Recargar progreso
+            await cargarProgresoModulo(moduloId);
+            
+            // Log para verificar el progreso actualizado
+            console.log('🔄 Progreso actualizado:', progresoModulo);
+            
+            // Actualizar la interfaz con el nuevo progreso
+            if (window.leccionesOrdenadas) {
+                renderizarLecciones(window.leccionesOrdenadas);
+            }
+            
+            mostrarMensajeExito('¡Lección completada!');
+        } else {
+            console.error('❌ Error marcando lección:', await response.text());
+        }
         
     } catch (error) {
         console.error('Error marcando lección como vista:', error);
@@ -527,6 +926,8 @@ async function cargarEvaluacion(evaluacionId) {
     mostrarSpinner(true);
     
     try {
+        console.log('📝 Cargando evaluación para módulo:', moduloActual.id);
+        
         const response = await fetch(`${apiUrl}/modulos/${moduloActual.id}/evaluacion`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -536,7 +937,7 @@ async function cargarEvaluacion(evaluacionId) {
         
         if (response.ok) {
             const evaluacion = await response.json();
-            console.log('Evaluación cargada:', evaluacion);
+            console.log('✅ Evaluación cargada:', evaluacion);
             
             // Mostrar interfaz de evaluación
             const introduccionContent = document.getElementById('introduccionContent');
@@ -549,6 +950,9 @@ async function cargarEvaluacion(evaluacionId) {
             }
         } else {
             console.error('Error cargando evaluación:', response.status);
+            if (response.status === 403) {
+                mostrarMensajeBloqueado('No tienes acceso a la evaluación. Completa todas las lecciones primero.');
+            }
         }
     } catch (error) {
         console.error('Error cargando evaluación:', error);
@@ -558,6 +962,8 @@ async function cargarEvaluacion(evaluacionId) {
 }
 
 function renderizarEvaluacion(evaluacion) {
+    const evaluacionAprobada = progresoModulo?.evaluacion_aprobada || false;
+    
     return `
         <div class="evaluacion-container">
             <h2>${evaluacion.titulo || 'Evaluación Final'}</h2>
@@ -566,9 +972,16 @@ function renderizarEvaluacion(evaluacion) {
             <p><strong>Puntaje mínimo:</strong> ${evaluacion.puntaje_minimo || 70}%</p>
             <p><strong>Número de preguntas:</strong> ${evaluacion.numero_preguntas || 10}</p>
             
+            ${evaluacionAprobada ? `
+                <div style="margin-top: 20px; padding: 15px; background-color: #d4edda; border-radius: 8px; color: #155724;">
+                    <strong>✓ Evaluación ya aprobada</strong>
+                    <p>Ya has aprobado esta evaluación. Puedes ver tu certificado en la sección de logros.</p>
+                </div>
+            ` : ''}
+            
             <div style="margin-top: 30px;">
-                <button class="btn-start-evaluation" onclick="iniciarEvaluacion(${evaluacion.id})">
-                    Comenzar Evaluación
+                <button class="btn-start-evaluation" onclick="iniciarEvaluacion(${evaluacion.id})" ${evaluacionAprobada ? 'disabled' : ''}>
+                    ${evaluacionAprobada ? 'Ya aprobada' : 'Comenzar Evaluación'}
                 </button>
             </div>
         </div>
@@ -576,8 +989,9 @@ function renderizarEvaluacion(evaluacion) {
 }
 
 window.iniciarEvaluacion = async function(evaluacionId) {
-    // Implementar lógica para iniciar evaluación
     console.log('Iniciar evaluación:', evaluacionId);
+    // Aquí iría la lógica para iniciar la evaluación
+    mostrarMensajeExito('Función de evaluación en desarrollo');
 };
 
 function mostrarIntroduccion() {
@@ -592,18 +1006,12 @@ function mostrarIntroduccion() {
             const introHeader = introduccionContent.querySelector('h2');
             const paragraphs = introduccionContent.querySelectorAll('p');
             
-            // Mantener el primer párrafo? O reemplazar todo?
-            // Aquí asumimos que quieres reemplazar los párrafos existentes
             if (paragraphs.length > 0) {
-                // Reemplazar el primer párrafo con la descripción larga
                 paragraphs[0].innerHTML = moduloActual.descripcion_larga;
-                
-                // Ocultar los demás párrafos o reemplazarlos también
                 for (let i = 1; i < paragraphs.length; i++) {
                     paragraphs[i].style.display = 'none';
                 }
             } else {
-                // Si no hay párrafos, crear uno nuevo
                 const newParagraph = document.createElement('p');
                 newParagraph.innerHTML = moduloActual.descripcion_larga;
                 introHeader.insertAdjacentElement('afterend', newParagraph);
@@ -621,20 +1029,17 @@ function mostrarIntroduccion() {
 // ===============================
 
 function actualizarTituloModulo(modulo) {
-    // modulo es el objeto completo del módulo actual
     const moduleTitleElements = [
         document.getElementById('moduleTitle'),
         document.getElementById('moduleTitleMobile')
     ];
     
-    // Usar modulo.modulo (el valor del enum) en lugar de modulo.titulo
     const nombreCorto = modulo.modulo ? modulo.modulo.toUpperCase() : modulo.titulo.toUpperCase();
     
     moduleTitleElements.forEach(el => {
         if (el) el.textContent = nombreCorto;
     });
     
-    // Actualizar título de la página (opcional, puedes mantener el título completo aquí)
     document.title = `${modulo.titulo} - Varchate`;
 }
 
@@ -650,13 +1055,12 @@ function actualizarProgreso(porcentaje) {
     ];
     
     progressPercentElements.forEach(el => {
-        if (el) el.textContent = `${porcentaje}%`;
+        if (el) el.textContent = `${Math.round(porcentaje)}%`;
     });
     
     progressFillElements.forEach(el => {
         if (el) {
             el.style.width = `${porcentaje}%`;
-            // Verificar color del texto después de aplicar el ancho
             setTimeout(() => checkTextColorOverlap(el), 100);
         }
     });
@@ -714,7 +1118,7 @@ function mostrarErrorModulo() {
 }
 
 // ===============================
-// FUNCIONALIDADES EXISTENTES (ADAPTADAS)
+// FUNCIONALIDADES EXISTENTES
 // ===============================
 
 function inicializarFuncionalidades() {
@@ -724,21 +1128,9 @@ function inicializarFuncionalidades() {
     configurarLogout();
     configurarBotonesModulos();
     manejarNavegacion();
-    
-    // Agregar event listeners para los botones del sidebar ya renderizados
-    document.querySelectorAll('.sidebar button:not(.locked)').forEach(btn => {
-        if (!btn._listenerAgregado) {
-            btn._listenerAgregado = true;
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-            });
-        }
-    });
 }
 
 function configurarProgreso() {
-    // Ya implementado en actualizarProgreso, pero mantenemos para verificación periódica
     const progressFills = document.querySelectorAll('.progress-fill');
     progressFills.forEach(fill => {
         const checkOverlap = () => {
@@ -881,12 +1273,14 @@ async function cerrarSesion(e) {
     } catch (error) {
         console.error('Error en logout:', error);
     } finally {
+        // Limpiar localStorage
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user');
         localStorage.removeItem('user_nombre');
         localStorage.removeItem('user_apellido');
         localStorage.removeItem('user_email');
         
+        // Limpiar sesión en el servidor
         try {
             await fetch('/api/clear-session-token', {
                 method: 'POST',
@@ -898,13 +1292,12 @@ async function cerrarSesion(e) {
             console.error('Error limpiando sesión:', error);
         }
         
-        window.location.href = '/login';
+        // Usar la función de redirección consistente
+        redirigirALogin();
     }
 }
 
 function configurarBotonesModulos() {
-    // Ya se maneja en renderizarBotonesModulos, pero mantenemos la función
-    // para centrar el botón activo
     function centrarBotonActivo() {
         const botonActivo = document.querySelector('.top-buttons button.active');
         if (botonActivo) {
@@ -946,7 +1339,7 @@ function manejarNavegacion() {
         
         const publicRoutes = ['/login', '/register', '/recuperar', '/nueva_contrasena', '/enlace'];
         if (!publicRoutes.includes(currentPath) && !token) {
-            window.location.href = '/login';
+            redirigirALogin();
         }
     });
     
@@ -985,6 +1378,13 @@ function manejarNavegacion() {
                     
                     if (esCritica) {
                         redirigiendo = true;
+                        // Limpiar localStorage
+                        localStorage.removeItem('auth_token');
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('user_nombre');
+                        localStorage.removeItem('user_apellido');
+                        localStorage.removeItem('user_email');
+                        
                         mostrarMensajeSesionExpirada();
                     }
                 }

@@ -152,10 +152,33 @@ document.addEventListener("DOMContentLoaded", () => {
           // Mostrar mensaje de éxito
           showSuccessMessage("¡Inicio de sesión exitoso! Redirigiendo...");
           
-          // Redirigir a la vista de módulo principal
-          setTimeout(() => {
-              window.location.href = "/modulo";
-          }, 1500);
+          // Guardar token en sesión del servidor
+          try {
+              // Obtener token CSRF
+              const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+              
+              const sessionResponse = await fetch('/api/set-session-token', {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'X-CSRF-TOKEN': csrfToken
+                  },
+                  body: JSON.stringify({ token: token })
+              });
+              
+              if (sessionResponse.ok) {
+                  // Redirigir a la vista de módulo principal
+                  setTimeout(() => {
+                      window.location.href = "/modulo";
+                  }, 1500);
+              } else {
+                  showFormError("Error al guardar sesión. Inténtalo de nuevo");
+              }
+          } catch (error) {
+              console.error('Error al guardar sesión:', error);
+              showFormError("Error al guardar sesión. Inténtalo de nuevo");
+          }
       } else {
           showFormError("Error: No se recibió el token de autenticación");
       }

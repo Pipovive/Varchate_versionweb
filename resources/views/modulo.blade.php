@@ -12,7 +12,7 @@
 <header class="header">
   <div class="header-left">
     <a href="#" class="logo-link">
-      <img src="{{ asset('images/logo.svg') }}" alt="Logo Varchate" class="logo">
+      <img src="{{ asset('images/logo_blanco.png') }}" alt="Logo Varchate" class="logo">
     </a>
   </div>
 
@@ -50,7 +50,7 @@
             <img src="{{ asset('images/foto-perfil.png') }}" alt="Usuario" id="profile-pic" tabindex="0" aria-haspopup="true" aria-expanded="false">
 
             <div class="user-menu" id="user-menu" role="menu">
-              <a href="#" class="menu-item" role="menuitem" tabindex="0">
+              <a href="/perfil" class="menu-item" role="menuitem" tabindex="0">
                 <span>Editar perfil</span>
                 <img src="{{ asset('images/editar-cuadrado.svg') }}" alt="Editar" class="menu-svg">
               </a>

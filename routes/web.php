@@ -39,6 +39,10 @@ Route::get('/enlace', function () {
         return view('dashboard');
     });
 
+    Route::get('correo', function () {
+    return view('correo');
+    });
+
 // ===============================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ===============================

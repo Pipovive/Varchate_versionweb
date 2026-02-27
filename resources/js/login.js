@@ -144,9 +144,23 @@ document.addEventListener("DOMContentLoaded", () => {
               localStorage.setItem('user_nombre', partes[0] || 'Usuario');
               localStorage.setItem('user_apellido', partes.slice(1).join(' ') || '');
               localStorage.setItem('user_email', data.user.email || '');
-              if (data.user.avatar) {
-                  localStorage.setItem('user_avatar', data.user.avatar);
-              }
+        // Solo sobrescribir user_avatar si el servidor devuelve uno explícito.
+        // Si el servidor no tiene avatar, conservamos el valor que ya exista en localStorage
+        // para respetar cambios hechos en el cliente.
+        try {
+          const userId = data.user.id || null;
+          if (data.user.avatar) {
+            // Guardar avatar global y por usuario
+            localStorage.setItem('user_avatar', data.user.avatar);
+            if (userId) localStorage.setItem(`user_avatar_for_${userId}`, data.user.avatar);
+          } else if (userId) {
+            // Si el servidor no devuelve avatar, intentar usar el avatar local específico del usuario
+            const perUser = localStorage.getItem(`user_avatar_for_${userId}`);
+            if (perUser) {
+              localStorage.setItem('user_avatar', perUser);
+            }
+          }
+        } catch (e) { /* noop */ }
           }
           
           // Mostrar mensaje de éxito

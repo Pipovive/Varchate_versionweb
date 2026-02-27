@@ -299,6 +299,8 @@ async function cargarDatosUsuario() {
         // Token inválido: limpiar y notificar
         localStorage.removeItem('auth_token');
         localStorage.removeItem('token');
+        // Limpiar datos de usuario (no eliminar user_avatar to persist avatar across sessions)
+        localStorage.removeItem('user');
         showErrorToast('Sesión inválida o expirada. Por favor, inicia sesión de nuevo.');
         // Opcional: redirigir a login
         // window.location.href = '/login';
@@ -425,11 +427,29 @@ perfilForm.addEventListener("submit", async (e) => {
           localStorage.setItem('user_avatar', selectedSrc);
         } catch (e) { /* noop */ }
       }
-      // Intentar parsear respuesta con usuario actualizado y guardar avatar si viene del servidor
+      // Intentar parsear respuesta con usuario actualizado y guardar datos en localStorage
       const updatedUser = await parseJsonSafe(res);
-      if (updatedUser && updatedUser.avatar) {
-        try { localStorage.setItem('user_avatar', updatedUser.avatar); } catch (e) { /* noop */ }
-      }
+      try {
+        if (updatedUser && typeof updatedUser === 'object') {
+          // Guardar el objeto de usuario actualizado
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+
+          // Guardar nombre(s) para mostrar en el módulo
+          const nombreCompleto = updatedUser.nombre || updatedUser.name || '';
+          const partes = nombreCompleto.split(' ');
+          localStorage.setItem('user_nombre', partes[0] || 'Usuario');
+          localStorage.setItem('user_apellido', partes.slice(1).join(' ') || '');
+
+          // Preferir la ruta de avatar que venga del servidor, si no, usar la seleccionada en UI
+          const avatarFromServer = updatedUser.avatar;
+          if (avatarFromServer && avatarFromServer !== '') {
+            localStorage.setItem('user_avatar', avatarFromServer);
+          } else if (avatarSeleccionado) {
+            // Normalizar a ruta relativa si es necesario
+            try { localStorage.setItem('user_avatar', avatarSeleccionado.querySelector('img').src); } catch (e) { /* noop */ }
+          }
+        }
+      } catch (e) { /* noop: no bloquear flujo por errores de localStorage */ }
       // Marcar que al menos hubo una actualización del perfil (para redirigir más tarde)
       _perfilGuardado = true;
     }
@@ -502,6 +522,41 @@ perfilForm.addEventListener("submit", async (e) => {
     }
 
     // Mostrar toast de éxito y luego redirigir a módulo
+    // Intentar obtener el estado actualizado desde el servidor y persistirlo
+    if (_perfilGuardado) {
+      try {
+        const meRes = await fetch(`${API_BASE}/me`, {
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Accept': 'application/json'
+          }
+        });
+        if (meRes.ok) {
+          const meData = await parseJsonSafe(meRes) || {};
+          try {
+            localStorage.setItem('user', JSON.stringify(meData));
+            const nombreCompleto = meData.nombre || meData.name || '';
+            const partes = nombreCompleto.split(' ');
+            localStorage.setItem('user_nombre', partes[0] || 'Usuario');
+            localStorage.setItem('user_apellido', partes.slice(1).join(' ') || '');
+            // Persistir avatar por usuario para soportar múltiples cuentas en el mismo navegador
+            const userId = meData.id || (meData.user && meData.user.id) || null;
+            const avatarVal = meData.avatar || (avatarSeleccionado ? avatarSeleccionado.querySelector('img').src : null);
+            if (userId && avatarVal) {
+              try { localStorage.setItem(`user_avatar_for_${userId}`, avatarVal); } catch (e) { /* noop */ }
+              try { localStorage.setItem('user_avatar', avatarVal); } catch (e) { /* noop */ }
+              try { localStorage.setItem('user_id', String(userId)); } catch (e) { /* noop */ }
+            } else if (avatarVal) {
+              try { localStorage.setItem('user_avatar', avatarVal); } catch (e) { /* noop */ }
+            }
+          } catch (e) { /* noop */ }
+        }
+      } catch (e) {
+        // No bloquear el flujo si falla el GET /me, pero se intentó persistir
+        console.warn('No se pudo obtener /me tras actualizar perfil', e);
+      }
+    }
+
     showSuccessToast('Perfil actualizado correctamente', 1500);
     if (modal.classList.contains("show")) {
       cerrarModal();

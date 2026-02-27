@@ -7,6 +7,20 @@ use Illuminate\Http\Request;
 // RUTAS PÚBLICAS (accesibles sin autenticación)
 // ===============================
 
+// La raíz siempre redirige al dashboard (página principal pública)
+Route::get('/', function () {
+    return redirect('/dashboard');
+});
+
+// Dashboard público - no requiere autenticación
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->name('dashboard');
+
+// ===============================
+// Login, Registro y Recuperación de Contraseña
+// ===============================
+
 Route::get('/login', function () {
     // Si ya hay token, redirigir a módulos
     if (session()->has('auth_token') || request()->cookie('auth_token')) {
@@ -27,44 +41,38 @@ Route::get('/recuperar', function () {
     return view('recuperar');
 });
 
-Route::get('/nueva_contrasena', function () {
-    return view('nueva_contrasena');
-});
-
 Route::get('/enlace', function () {
     return view('enlace');
 });
 
-    Route::get('/', function () {
-        return view('dashboard');
-    });
+Route::get('/nueva_contrasena', function () {
+    return view('nueva_contrasena');
+});
+
+Route::get('/contrasena_actualizada', function () {
+    return view('contrasena_actualizada');
+});
 
 // ===============================
-// RUTAS PROTEGIDAS (requieren autenticación)
+// RUTAS PROTEGIDAS (requieren token de sesión)
 // ===============================
 
 Route::middleware('auth')->group(function () {
     Route::get('/modulos', function () {
-        return view('modulos');
-    })->name('modulos');
+            return view('modulo');
+        }
+        )->name('modulos');
 
-    Route::get('/modulo', function () {
-        return view('modulo');
-    })->name('modulo');
+        Route::get('/modulo/{slug}', function ($slug) {
+            return view('modulo', ['slug' => $slug]);
+        }
+        )->name('modulo.detalle');
 
-    Route::get('/modulo/{slug}', function ($slug) {
-        return view('modulo', ['slug' => $slug]);
-    })->name('modulo.detalle');
-
-
-    Route::get('/perfil', function () {
-        return view('perfil');
+        Route::get('/perfil', function () {
+            return view('perfil');
+        }
+        );
     });
-
-    Route::get('/contrasena_actualizada', function () {
-        return view('contrasena_actualizada');
-    });
-});
 
 // ===============================
 // API LOCAL PARA MANEJAR SESIÓN
@@ -83,6 +91,3 @@ Route::post('/api/clear-session-token', function () {
     session()->forget('auth_token');
     return response()->json(['success' => true]);
 });
-
-
-

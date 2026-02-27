@@ -2,25 +2,32 @@
 // VERIFICACIÓN DE AUTENTICACIÓN
 // ===============================
 
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // Verificar token en localStorage
     const token = localStorage.getItem('auth_token');
-    
+
     if (!token) {
         redirigirALogin();
         return;
     }
-    
+
     // Obtener el slug del módulo desde la URL
     const moduleSlug = obtenerSlugDeURL();
     console.log('Módulo actual:', moduleSlug);
-    
+
     // Verificar que el token sea válido con la API
     await verificarTokenEnSegundoPlano(token);
-    
+
     // Cargar datos del usuario desde localStorage primero
     cargarDatosUsuario();
-    
+
+    // Si no hay slug (ruta /modulos general), mostrar bienvenida
+    if (!moduleSlug) {
+        mostrarBienvenidaModulos();
+        await cargarDatosModulo(null);
+        return;
+    }
+
     // Cargar datos del módulo desde la API
     await cargarDatosModulo(moduleSlug);
 });
@@ -34,15 +41,18 @@ function redirigirALogin(params = '') {
 }
 
 function obtenerSlugDeURL() {
-    // Ejemplo: /modulo/introduccion-a-html
-    const pathParts = window.location.pathname.split('/');
+    // Ejemplo: /modulo/introduccion-a-html → devuelve 'introduccion-a-html'
+    // /modulos → devuelve null (vista general)
+    const path = window.location.pathname;
+    if (path === '/modulos' || path === '/modulos/') return null;
+    const pathParts = path.split('/');
     const slugIndex = pathParts.indexOf('modulo') + 1;
-    return slugIndex < pathParts.length ? pathParts[slugIndex] : 'introduccion-a-html';
+    return slugIndex > 0 && slugIndex < pathParts.length ? pathParts[slugIndex] : null;
 }
 
 async function verificarTokenEnSegundoPlano(token) {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
-    
+
     try {
         const response = await fetch(`${apiUrl}/me`, {
             method: 'GET',
@@ -52,7 +62,7 @@ async function verificarTokenEnSegundoPlano(token) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (response.ok) {
             const userData = await response.json();
             if (userData) {
@@ -62,7 +72,7 @@ async function verificarTokenEnSegundoPlano(token) {
                 localStorage.setItem('user_nombre', partes[0] || 'Usuario');
                 localStorage.setItem('user_apellido', partes.slice(1).join(' ') || '');
                 localStorage.setItem('user_email', userData.email || '');
-                
+
                 cargarDatosUsuario();
             }
         } else {
@@ -81,7 +91,7 @@ async function verificarTokenEnSegundoPlano(token) {
 
 function mostrarMensajeSesionExpirada() {
     if (document.getElementById('session-expired-message')) return;
-    
+
     const mensaje = document.createElement('div');
     mensaje.id = 'session-expired-message';
     mensaje.style.cssText = `
@@ -111,7 +121,7 @@ function mostrarMensajeSesionExpirada() {
         ">Reconectar</button>
     `;
     document.body.appendChild(mensaje);
-    
+
     setTimeout(() => {
         if (mensaje.parentNode) {
             mensaje.remove();
@@ -125,7 +135,7 @@ window.redirigirALogin = redirigirALogin;
 function cargarDatosUsuario() {
     const nombre = localStorage.getItem('user_nombre') || 'Usuario';
     const apellido = localStorage.getItem('user_apellido') || '';
-    
+
     const userNameDesktop = document.getElementById('userNameDesktop');
     if (userNameDesktop) {
         const firstNameSpan = userNameDesktop.querySelector('.first-name');
@@ -133,7 +143,7 @@ function cargarDatosUsuario() {
         if (firstNameSpan) firstNameSpan.textContent = nombre;
         if (lastNameSpan) lastNameSpan.textContent = apellido;
     }
-    
+
     const userNameMobile = document.getElementById('userNameMobile');
     if (userNameMobile) {
         const firstNameSpan = userNameMobile.querySelector('.first-name');
@@ -178,13 +188,14 @@ let modulosGlobal = [];
 let moduloActual = null;
 let leccionesModulo = [];
 let progresoModulo = null;
+let leccionActualIndex = -1; // -1 = Introducción, 0+ = Lecciones
 
 async function cargarDatosModulo(moduleSlug) {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
     const token = localStorage.getItem('auth_token');
-    
+
     mostrarSpinner(true);
-    
+
     try {
         // 1. Cargar todos los módulos para los botones superiores
         const modulosResponse = await fetch(`${apiUrl}/modulos`, {
@@ -193,44 +204,52 @@ async function cargarDatosModulo(moduleSlug) {
                 'Accept': 'application/json'
             }
         });
-        
+
         if (modulosResponse.ok) {
             modulosGlobal = await modulosResponse.json();
             console.log('Módulos cargados:', modulosGlobal);
             renderizarBotonesModulos(modulosGlobal);
         }
-        
-        // 2. Cargar el módulo específico por slug
+
+        // 2. Cargar el módulo específico por slug (solo si hay slug)
+        if (!moduleSlug) {
+            // En /modulos sin slug, solo cargar los botones y mostrar bienvenida
+            mostrarBienvenidaModulos();
+            mostrarSpinner(false);
+            inicializarFuncionalidades();
+            return;
+        }
+
         const moduloResponse = await fetch(`${apiUrl}/modulos/${moduleSlug}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
             }
         });
-        
+
         if (moduloResponse.ok) {
             moduloActual = await moduloResponse.json();
             console.log('Módulo actual:', moduloActual);
-            
+
             // Actualizar título del módulo en la barra de progreso con el nombre corto
             actualizarTituloModulo(moduloActual);
-            
+
             // Actualizar la introducción con la descripción larga
             actualizarIntroduccionModulo();
-            
+
             // 3. Cargar lecciones del módulo
             await cargarLeccionesModulo(moduloActual.id, moduleSlug);
-            
+
             // 4. Cargar progreso del módulo (si existe)
             await cargarProgresoModulo(moduloActual.id);
         } else {
             console.error('Error cargando módulo:', moduloResponse.status);
-            mostrarErrorModulo();
+            mostrarBienvenidaModulos();
         }
-        
+
     } catch (error) {
         console.error('Error cargando datos del módulo:', error);
-        mostrarErrorModulo();
+        mostrarBienvenidaModulos();
     } finally {
         mostrarSpinner(false);
         inicializarFuncionalidades();
@@ -240,24 +259,24 @@ async function cargarDatosModulo(moduleSlug) {
 function actualizarIntroduccionModulo() {
     const introduccionContent = document.getElementById('introduccionContent');
     if (!introduccionContent || !moduloActual) return;
-    
+
     // Actualizar el título
     const introHeader = introduccionContent.querySelector('h2');
     if (introHeader) {
         introHeader.innerHTML = `${moduloActual.titulo}`;
     }
-    
+
     // Eliminar párrafos existentes
     const parrafosExistentes = introduccionContent.querySelectorAll('p');
     parrafosExistentes.forEach(p => p.remove());
-    
+
     if (moduloActual.descripcion_larga) {
         // Dividir por saltos de línea (\n)
         const parrafos = moduloActual.descripcion_larga.split('\n');
-        
+
         // Variable para mantener referencia al último elemento insertado
         let ultimoElemento = introHeader;
-        
+
         // Crear un párrafo por cada línea no vacía (en orden)
         parrafos.forEach(parrafo => {
             if (parrafo.trim().length > 0) {
@@ -267,18 +286,18 @@ function actualizarIntroduccionModulo() {
                 p.style.lineHeight = '1.8';
                 p.style.fontSize = '16px';
                 p.style.textAlign = 'justify';
-                
+
                 // Insertar después del último elemento que insertamos
                 ultimoElemento.insertAdjacentElement('afterend', p);
                 ultimoElemento = p; // Actualizar la referencia
             }
         });
     }
-    
+
     // Asegurar que el título "Contenido" y las lecciones estén después
     const contenidoTitulo = introduccionContent.querySelector('h3');
     const lessonsContainer = document.getElementById('lessonsContainer');
-    
+
     if (contenidoTitulo) {
         introduccionContent.appendChild(contenidoTitulo);
     }
@@ -290,7 +309,7 @@ function actualizarIntroduccionModulo() {
 async function cargarLeccionesModulo(moduloId, moduleSlug) {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
     const token = localStorage.getItem('auth_token');
-    
+
     try {
         const response = await fetch(`${apiUrl}/modulos/${moduleSlug}/lecciones`, {
             headers: {
@@ -298,13 +317,13 @@ async function cargarLeccionesModulo(moduloId, moduleSlug) {
                 'Accept': 'application/json'
             }
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log('📚 Lecciones cargadas (raw):', data);
-            
+
             let leccionesArray = [];
-            
+
             // Verificar la estructura de la respuesta
             if (Array.isArray(data)) {
                 leccionesArray = data;
@@ -321,13 +340,13 @@ async function cargarLeccionesModulo(moduloId, moduleSlug) {
                         break;
                     }
                 }
-                
+
                 // Si no encontró array, intentar con Object.values
                 if (leccionesArray.length === 0) {
                     leccionesArray = Object.values(data).filter(item => item && typeof item === 'object' && item.id);
                 }
             }
-            
+
             // Filtrar lecciones que no tengan ID
             leccionesArray = leccionesArray.filter(leccion => {
                 if (!leccion || !leccion.id) {
@@ -336,7 +355,7 @@ async function cargarLeccionesModulo(moduloId, moduleSlug) {
                 }
                 return true;
             });
-            
+
             console.log('✅ Lecciones procesadas:', leccionesArray);
             leccionesModulo = leccionesArray;
             renderizarLecciones(leccionesArray);
@@ -351,10 +370,10 @@ async function cargarLeccionesModulo(moduloId, moduleSlug) {
 async function cargarProgresoModulo(moduloId) {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
     const token = localStorage.getItem('auth_token');
-    
+
     try {
         console.log('📥 Cargando progreso para módulo:', moduloId);
-        
+
         // Intentar cargar progreso de módulos con progreso
         const response = await fetch(`${apiUrl}/modulos-con-progreso`, {
             headers: {
@@ -362,11 +381,11 @@ async function cargarProgresoModulo(moduloId) {
                 'Accept': 'application/json'
             }
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log('📊 Progreso cargado (raw):', data);
-            
+
             // Verificar si la respuesta es un array o un objeto
             if (data.success && Array.isArray(data.data)) {
                 progresoModulo = data.data.find(m => m.id === moduloId);
@@ -384,12 +403,12 @@ async function cargarProgresoModulo(moduloId) {
                     progresoModulo = data.id === moduloId ? data : null;
                 }
             }
-            
+
             console.log('✅ Progreso procesado:', progresoModulo);
-            
+
             if (progresoModulo) {
                 actualizarProgreso(progresoModulo.progreso || 0);
-                
+
                 // Si ya tenemos lecciones cargadas, volver a renderizarlas con el progreso actualizado
                 if (window.leccionesOrdenadas && window.leccionesOrdenadas.length > 0) {
                     renderizarLecciones(window.leccionesOrdenadas);
@@ -408,35 +427,35 @@ async function cargarProgresoModulo(moduloId) {
 function renderizarBotonesModulos(modulos) {
     const container = document.getElementById('topButtonsContainer');
     if (!container) return;
-    
+
     // Limpiar contenedor
     container.innerHTML = '';
-    
+
     // Ordenar módulos por orden_global
     const modulosOrdenados = [...modulos].sort((a, b) => (a.orden_global || 0) - (b.orden_global || 0));
-    
+
     // Obtener el slug del módulo actual desde la URL como respaldo
     const currentSlug = obtenerSlugDeURL();
-    
+
     modulosOrdenados.forEach(modulo => {
         const button = document.createElement('button');
         button.setAttribute('data-modulo-id', modulo.id);
         button.setAttribute('data-modulo-slug', modulo.slug);
         button.textContent = modulo.modulo.toUpperCase();
-        
+
         // Verificar si es el módulo actual comparando por ID o slug
-        const esModuloActual = (moduloActual && modulo.id === moduloActual.id) || 
-                               (!moduloActual && modulo.slug === currentSlug);
-        
+        const esModuloActual = (moduloActual && modulo.id === moduloActual.id) ||
+            (!moduloActual && modulo.slug === currentSlug);
+
         if (esModuloActual) {
             button.classList.add('active');
             console.log('Botón activado:', modulo.modulo); // Para debugging
         }
-        
+
         button.addEventListener('click', () => {
             window.location.href = `/modulo/${modulo.slug}`;
         });
-        
+
         container.appendChild(button);
     });
 }
@@ -444,9 +463,9 @@ function renderizarBotonesModulos(modulos) {
 function renderizarLecciones(lecciones) {
     const sidebar = document.getElementById('sidebar');
     const lessonsContainer = document.getElementById('lessonsContainer');
-    
+
     if (!sidebar || !lessonsContainer) return;
-    
+
     // Verificar que lecciones sea un array
     if (!Array.isArray(lecciones) || lecciones.length === 0) {
         console.warn('No hay lecciones para mostrar');
@@ -454,49 +473,50 @@ function renderizarLecciones(lecciones) {
         lessonsContainer.innerHTML = '<p class="no-lessons">No hay lecciones disponibles en este módulo</p>';
         return;
     }
-    
+
     // Ordenar lecciones por orden
     const leccionesOrdenadas = [...lecciones].sort((a, b) => (a.orden || 0) - (b.orden || 0));
-    
+
     // Guardar las lecciones ordenadas globalmente para usarlas después
     window.leccionesOrdenadas = leccionesOrdenadas;
-    
+
     // ===== Obtener datos de progreso REALES =====
     const leccionesCompletadas = progresoModulo?.lecciones_vistas || 0;
     const totalLeccionesReales = leccionesOrdenadas.length; // Usar el length real, no el de BD
-    
+
     console.log('📊 Renderizando lecciones:', {
         leccionesCompletadas: leccionesCompletadas,
         totalLecciones: totalLeccionesReales,
         evaluacionAprobada: progresoModulo?.evaluacion_aprobada,
         progresoModulo: progresoModulo
     });
-    
+
     // 1. Renderizar sidebar (BOTONES FUNCIONALES)
     let sidebarHTML = '<button class="active" data-tipo="intro" data-leccion-id="intro">INTRODUCCIÓN</button>';
-    
+
     leccionesOrdenadas.forEach((leccion, index) => {
-        // ===== LÓGICA DE DESBLOQUEO CORREGIDA =====
-        // La primera lección (índice 0) siempre está desbloqueada
-        // Las siguientes se desbloquean cuando se completa la anterior
-        const estaDesbloqueada = index === 0 || index < leccionesCompletadas;
-        
+        // ===== LÓGICA DE DESBLOQUEO =====
+        // Solo la INTRODUCCIÓN está libre para usuarios nuevos.
+        // Lección 1 se desbloquea cuando leccionesCompletadas >= 1
+        // Lección N se desbloquea cuando se ha completado la anterior
+        const estaDesbloqueada = index < leccionesCompletadas;
+
         // Si la evaluación ya está aprobada, TODAS las lecciones están desbloqueadas
         const todasDesbloqueadas = progresoModulo?.evaluacion_aprobada === true;
         const desbloqueadaFinal = todasDesbloqueadas ? true : estaDesbloqueada;
-        
+
         const claseBloqueo = desbloqueadaFinal ? '' : 'locked';
         const iconoLlave = desbloqueadaFinal ? '' : '<img src="/images/Lock.svg" alt="Bloqueado" class="icon-lock">';
-        
+
         // Marcar como vista si ya fue completada
         const claseVista = index < leccionesCompletadas ? 'vista' : '';
-        
+
         sidebarHTML += `
             <button class="${claseBloqueo} ${claseVista}" data-leccion-id="${leccion.id}" data-leccion-slug="${leccion.slug}" data-leccion-index="${index}">
                 LECCIÓN ${index + 1} ${iconoLlave}
             </button>
         `;
-        
+
         console.log(`Lección ${index + 1}:`, {
             id: leccion.id,
             titulo: leccion.titulo,
@@ -504,22 +524,22 @@ function renderizarLecciones(lecciones) {
             completada: index < leccionesCompletadas
         });
     });
-    
+
     // Verificar si todas las lecciones están completadas para desbloquear evaluación
     const todasLeccionesCompletadas = leccionesCompletadas >= leccionesOrdenadas.length;
     const evaluacionDesbloqueada = todasLeccionesCompletadas || progresoModulo?.evaluacion_aprobada === true;
-    
+
     sidebarHTML += `
         <button class="${evaluacionDesbloqueada ? '' : 'locked'}" data-tipo="evaluacion" data-evaluacion-id="${moduloActual?.id || 1}">
             EVALUACIÓN ${evaluacionDesbloqueada ? '' : '<img src="/images/Lock.svg" alt="Bloqueado" class="icon-lock">'}
         </button>
     `;
-    
+
     sidebar.innerHTML = sidebarHTML;
-    
+
     // 2. Renderizar lista de lecciones en contenido (SOLO VISUALES, SIN EVENTOS)
     let lessonsHTML = '';
-    
+
     leccionesOrdenadas.forEach((leccion, index) => {
         // Extraer un párrafo corto del contenido para la descripción
         let descripcionCorta = '';
@@ -530,11 +550,11 @@ function renderizarLecciones(lecciones) {
         } else {
             descripcionCorta = 'Contenido de la lección';
         }
-        
+
         // Marcar visualmente las lecciones completadas
-   const claseCompletada = index < leccionesCompletadas ? 'completed' : '';
-    
-    lessonsHTML += `
+        const claseCompletada = index < leccionesCompletadas ? 'completed' : '';
+
+        lessonsHTML += `
         <div class="lesson ${claseCompletada}" 
              data-leccion-id="${leccion.id}" 
              data-leccion-slug="${leccion.slug}" 
@@ -547,33 +567,33 @@ function renderizarLecciones(lecciones) {
             </div>
         </div>
     `;
-});
-    
-    // Agregar evaluación (SOLO VISUAL)
-        const evaluacionAprobada = progresoModulo?.evaluacion_aprobada || false;
+    });
 
-        lessonsHTML += `
+    // Agregar evaluación (SOLO VISUAL)
+    const evaluacionAprobada = progresoModulo?.evaluacion_aprobada || false;
+
+    lessonsHTML += `
             <div class="lesson evaluation ${evaluacionAprobada ? 'completed' : ''}" 
                 data-tipo="evaluacion" 
                 data-evaluacion-id="${moduloActual?.id || 1}">
                 <i class="fa-regular fa-file-lines"></i>
                 <div>
                     <strong>Evaluación del Módulo</strong>
-                    <p>${moduloActual?.descripcion_larga ? 
-                        moduloActual.descripcion_larga.substring(0, 100) + '...' : 
-                        'Pon a prueba tus conocimientos del módulo'}</p>
+                    <p>${moduloActual?.descripcion_larga ?
+            moduloActual.descripcion_larga.substring(0, 100) + '...' :
+            'Pon a prueba tus conocimientos del módulo'}</p>
                 </div>
             </div>
         `;
-    
+
     lessonsContainer.innerHTML = lessonsHTML;
-    
+
     // Agregar event listeners SOLO a los botones del sidebar
     document.querySelectorAll('.sidebar button').forEach(btn => {
         // Remover listeners anteriores para evitar duplicados
         btn.replaceWith(btn.cloneNode(true));
     });
-    
+
     // Volver a seleccionar los botones después de reemplazarlos
     document.querySelectorAll('.sidebar button').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -581,14 +601,14 @@ function renderizarLecciones(lecciones) {
             const leccionSlug = btn.dataset.leccionSlug;
             const leccionIndex = parseInt(btn.dataset.leccionIndex);
             const tipo = btn.dataset.tipo;
-            
+
             console.log('Click en sidebar button:', { tipo, leccionId, leccionSlug, leccionIndex });
-            
+
             // Verificar si el botón está bloqueado visualmente
             if (btn.classList.contains('locked')) {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 if (tipo === 'evaluacion') {
                     mostrarMensajeBloqueado('Completa todas las lecciones para acceder a la evaluación');
                 } else {
@@ -601,19 +621,22 @@ function renderizarLecciones(lecciones) {
                 }
                 return;
             }
-            
+
             // Marcar como activo
             document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
+
             if (tipo === 'intro') {
                 console.log('Mostrando introducción');
+                leccionActualIndex = -1; // Sincronizar estado
                 mostrarIntroduccion();
             } else if (tipo === 'evaluacion') {
                 console.log('Cargando evaluación');
+                leccionActualIndex = window.leccionesOrdenadas?.length ?? 0; // Sincronizar estado
                 cargarEvaluacion(btn.dataset.evaluacionId);
             } else if (leccionSlug && moduloActual) {
                 console.log('Cargando lección:', leccionSlug);
+                leccionActualIndex = leccionIndex; // Sincronizar estado
                 cargarLeccion(moduloActual.slug, leccionSlug);
             }
         });
@@ -623,7 +646,7 @@ function renderizarLecciones(lecciones) {
 // Función para mostrar mensaje de contenido bloqueado
 function mostrarMensajeBloqueado(mensaje = 'Completa el contenido anterior para desbloquear este') {
     if (document.getElementById('locked-message')) return;
-    
+
     const mensajeEl = document.createElement('div');
     mensajeEl.id = 'locked-message';
     mensajeEl.style.cssText = `
@@ -643,9 +666,9 @@ function mostrarMensajeBloqueado(mensaje = 'Completa el contenido anterior para 
         min-width: 300px;
     `;
     mensajeEl.innerHTML = `🔒 ${mensaje}`;
-    
+
     document.body.appendChild(mensajeEl);
-    
+
     setTimeout(() => {
         if (mensajeEl.parentNode) {
             mensajeEl.remove();
@@ -656,7 +679,7 @@ function mostrarMensajeBloqueado(mensaje = 'Completa el contenido anterior para 
 // Función para mostrar mensaje de éxito
 function mostrarMensajeExito(mensaje) {
     if (document.getElementById('success-message')) return;
-    
+
     const mensajeEl = document.createElement('div');
     mensajeEl.id = 'success-message';
     mensajeEl.style.cssText = `
@@ -676,9 +699,9 @@ function mostrarMensajeExito(mensaje) {
         min-width: 300px;
     `;
     mensajeEl.innerHTML = `✅ ${mensaje}`;
-    
+
     document.body.appendChild(mensajeEl);
-    
+
     setTimeout(() => {
         if (mensajeEl.parentNode) {
             mensajeEl.remove();
@@ -765,16 +788,16 @@ if (!document.getElementById('animation-styles')) {
 
 function limpiarContenidoHTML(html) {
     if (!html) return '<p>Contenido no disponible</p>';
-    
+
     let contenidoLimpio = html;
-    
+
     // Extraer contenido del body (pero conservar estilos)
     const bodyRegex = /<body[^>]*>([\s\S]*?)<\/body>/i;
     const bodyMatch = contenidoLimpio.match(bodyRegex);
     if (bodyMatch && bodyMatch[1]) {
         contenidoLimpio = bodyMatch[1];
     }
-    
+
     // Extraer estilos del head y agregarlos al contenido
     const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
     let styles = '';
@@ -782,20 +805,20 @@ function limpiarContenidoHTML(html) {
     while ((styleMatch = styleRegex.exec(html)) !== null) {
         styles += styleMatch[0];
     }
-    
+
     // Si hay estilos, agregarlos al principio del contenido
     if (styles) {
         contenidoLimpio = styles + contenidoLimpio;
     }
-    
+
     // Eliminar metadatos y doctype (no afectan estilos)
     contenidoLimpio = contenidoLimpio.replace(/<meta[^>]*>/gi, '');
     contenidoLimpio = contenidoLimpio.replace(/<!DOCTYPE[^>]*>/i, '');
-    
+
     // Eliminar etiquetas html y head vacías
     contenidoLimpio = contenidoLimpio.replace(/<\/?html[^>]*>/gi, '');
     contenidoLimpio = contenidoLimpio.replace(/<\/?head[^>]*>/gi, '');
-    
+
     return contenidoLimpio;
 }
 
@@ -823,33 +846,33 @@ function mostrarContenidoNoDisponible() {
 async function cargarLeccion(moduloSlug, leccionSlug) {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
     const token = localStorage.getItem('auth_token');
-    
+
     mostrarSpinner(true);
-    
+
     try {
         console.log('📖 Cargando lección:', { moduloSlug, leccionSlug });
-        
+
         // Verificar que tenemos el módulo actual
         if (!moduloActual || !moduloActual.id) {
             console.error('No hay módulo actual');
             mostrarSpinner(false);
             return;
         }
-        
+
         const response = await fetch(`${apiUrl}/modulos/${moduloSlug}/lecciones/${leccionSlug}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
             }
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log('✅ Respuesta completa:', data);
-            
+
             // Extraer la lección de la propiedad 'leccion'
             let leccion = null;
-            
+
             if (data.leccion) {
                 leccion = data.leccion;
                 console.log('📦 Lección extraída de propiedad leccion:', leccion);
@@ -858,7 +881,7 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
             } else if (data.id) {
                 leccion = data;
             }
-            
+
             if (!leccion || !leccion.id) {
                 console.error('❌ No se pudo extraer la lección con ID:', leccion);
                 console.error('Estructura recibida:', data);
@@ -866,31 +889,31 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
                 mostrarSpinner(false);
                 return;
             }
-            
+
             console.log('✅ Lección procesada - ID:', leccion.id, 'Título:', leccion.titulo);
-            
+
             // Limpiar el contenido HTML
             let contenidoLimpio = leccion.contenido || '<p>Contenido no disponible</p>';
             contenidoLimpio = limpiarContenidoHTML(contenidoLimpio);
-            
+
             console.log('📄 Contenido limpio (primeros 200 chars):', contenidoLimpio.substring(0, 200) + '...');
-            
+
             // Mostrar contenido de la lección
             const introduccionContent = document.getElementById('introduccionContent');
             const leccionContent = document.getElementById('leccionContent');
-            
+
             if (introduccionContent) introduccionContent.style.display = 'none';
             if (leccionContent) {
                 leccionContent.style.display = 'block';
                 leccionContent.innerHTML = contenidoLimpio;
             }
-            
+
             // Encontrar el índice de la lección actual
             if (window.leccionesOrdenadas) {
                 const indiceActual = window.leccionesOrdenadas.findIndex(l => l.id === leccion.id);
                 console.log('📍 Índice de lección actual:', indiceActual);
             }
-            
+
         } else {
             console.error('Error cargando lección:', response.status);
             const errorText = await response.text();
@@ -905,13 +928,13 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
     }
 }
 
-async function marcarLeccionVista(moduloId, leccionId) {
+async function marcarLeccionVista(moduloId, leccionId, skipRender = false) {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
     const token = localStorage.getItem('auth_token');
-    
+
     try {
         console.log('📝 Marcando lección como vista:', { moduloId, leccionId });
-        
+
         const response = await fetch(`${apiUrl}/modulos/${moduloId}/lecciones/${leccionId}/marcar-vista`, {
             method: 'POST',
             headers: {
@@ -920,27 +943,25 @@ async function marcarLeccionVista(moduloId, leccionId) {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             console.log('✅ Respuesta de marcar vista:', data);
-            
+
             // Recargar progreso
             await cargarProgresoModulo(moduloId);
-            
-            // Log para verificar el progreso actualizado
             console.log('🔄 Progreso actualizado:', progresoModulo);
-            
-            // Actualizar la interfaz con el nuevo progreso
-            if (window.leccionesOrdenadas) {
+
+            // Solo re-renderizar el sidebar si no se pide omitir
+            if (!skipRender && window.leccionesOrdenadas) {
                 renderizarLecciones(window.leccionesOrdenadas);
             }
-            
+
             mostrarMensajeExito('¡Lección completada!');
         } else {
             console.error('❌ Error marcando lección:', await response.text());
         }
-        
+
     } catch (error) {
         console.error('Error marcando lección como vista:', error);
     }
@@ -949,27 +970,27 @@ async function marcarLeccionVista(moduloId, leccionId) {
 async function cargarEvaluacion(evaluacionId) {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
     const token = localStorage.getItem('auth_token');
-    
+
     mostrarSpinner(true);
-    
+
     try {
         console.log('📝 Cargando evaluación para módulo:', moduloActual.id);
-        
+
         const response = await fetch(`${apiUrl}/modulos/${moduloActual.id}/evaluacion`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
             }
         });
-        
+
         if (response.ok) {
             const evaluacion = await response.json();
             console.log('✅ Evaluación cargada:', evaluacion);
-            
+
             // Mostrar interfaz de evaluación
             const introduccionContent = document.getElementById('introduccionContent');
             const leccionContent = document.getElementById('leccionContent');
-            
+
             if (introduccionContent) introduccionContent.style.display = 'none';
             if (leccionContent) {
                 leccionContent.style.display = 'block';
@@ -990,7 +1011,7 @@ async function cargarEvaluacion(evaluacionId) {
 
 function renderizarEvaluacion(evaluacion) {
     const evaluacionAprobada = progresoModulo?.evaluacion_aprobada || false;
-    
+
     return `
         <div class="evaluacion-container">
             <h2>${evaluacion.titulo || 'Evaluación Final'}</h2>
@@ -1015,7 +1036,7 @@ function renderizarEvaluacion(evaluacion) {
     `;
 }
 
-window.iniciarEvaluacion = async function(evaluacionId) {
+window.iniciarEvaluacion = async function (evaluacionId) {
     console.log('Iniciar evaluación:', evaluacionId);
     // Aquí iría la lógica para iniciar la evaluación
     mostrarMensajeExito('Función de evaluación en desarrollo');
@@ -1024,15 +1045,15 @@ window.iniciarEvaluacion = async function(evaluacionId) {
 function mostrarIntroduccion() {
     const introduccionContent = document.getElementById('introduccionContent');
     const leccionContent = document.getElementById('leccionContent');
-    
+
     if (introduccionContent) {
         introduccionContent.style.display = 'block';
-        
+
         // Actualizar la introducción con la descripción larga del módulo si está disponible
         if (moduloActual && moduloActual.descripcion_larga) {
             const introHeader = introduccionContent.querySelector('h2');
             const paragraphs = introduccionContent.querySelectorAll('p');
-            
+
             if (paragraphs.length > 0) {
                 paragraphs[0].innerHTML = moduloActual.descripcion_larga;
                 for (let i = 1; i < paragraphs.length; i++) {
@@ -1045,7 +1066,7 @@ function mostrarIntroduccion() {
             }
         }
     }
-    
+
     if (leccionContent) {
         leccionContent.style.display = 'none';
     }
@@ -1060,13 +1081,13 @@ function actualizarTituloModulo(modulo) {
         document.getElementById('moduleTitle'),
         document.getElementById('moduleTitleMobile')
     ];
-    
+
     const nombreCorto = modulo.modulo ? modulo.modulo.toUpperCase() : modulo.titulo.toUpperCase();
-    
+
     moduleTitleElements.forEach(el => {
         if (el) el.textContent = nombreCorto;
     });
-    
+
     document.title = `${modulo.titulo} - Varchate`;
 }
 
@@ -1075,16 +1096,16 @@ function actualizarProgreso(porcentaje) {
         document.getElementById('progressPercent'),
         document.getElementById('progressPercentMobile')
     ];
-    
+
     const progressFillElements = [
         document.getElementById('progressFill'),
         document.getElementById('progressFillMobile')
     ];
-    
+
     progressPercentElements.forEach(el => {
         if (el) el.textContent = `${Math.round(porcentaje)}%`;
     });
-    
+
     progressFillElements.forEach(el => {
         if (el) {
             el.style.width = `${porcentaje}%`;
@@ -1095,20 +1116,20 @@ function actualizarProgreso(porcentaje) {
 
 function checkTextColorOverlap(progressFill) {
     if (!progressFill) return;
-    
+
     const card = progressFill.closest('.progress-container, .progress-container-mobile');
     if (!card) return;
-    
+
     const texto = card.querySelector('.progress-text');
     const percent = card.querySelector('.progress-percent');
     const barraRect = progressFill.getBoundingClientRect();
-    
+
     if (texto) {
         const textoRect = texto.getBoundingClientRect();
         const textoOverlap = barraRect.right >= textoRect.left + (textoRect.width / 2);
         texto.style.color = textoOverlap ? "#fff" : "#000";
     }
-    
+
     if (percent) {
         const percentRect = percent.getBoundingClientRect();
         const percentOverlap = barraRect.right >= percentRect.left + (percentRect.width / 2);
@@ -1123,25 +1144,45 @@ function mostrarSpinner(mostrar) {
     }
 }
 
-function mostrarErrorModulo() {
+function mostrarBienvenidaModulos() {
     const contentSection = document.getElementById('contentSection');
+    const nombre = localStorage.getItem('user_nombre') || 'Usuario';
     if (contentSection) {
         contentSection.innerHTML = `
-            <div style="text-align: center; padding: 50px;">
-                <h2>Error al cargar el módulo</h2>
-                <p>No se pudo cargar la información del módulo. Por favor, intenta de nuevo.</p>
-                <button onclick="window.location.reload()" style="
-                    background: #007bff;
-                    color: white;
-                    border: none;
-                    padding: 10px 20px;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    margin-top: 20px;
-                ">Reintentar</button>
+            <div style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 60px 40px;
+                text-align: center;
+                height: 100%;
+            ">
+                <div style="font-size: 64px; margin-bottom: 20px;">👋</div>
+                <h2 style="
+                    font-size: 28px;
+                    font-weight: 700;
+                    color: #1a1a2e;
+                    margin-bottom: 12px;
+                ">¡Hola, ${nombre}!</h2>
+                <p style="
+                    font-size: 18px;
+                    color: #555;
+                    margin-bottom: 8px;
+                ">Bienvenido a Varchate.</p>
+                <p style="
+                    font-size: 16px;
+                    color: #888;
+                    max-width: 400px;
+                    line-height: 1.6;
+                ">Elige un módulo del menú para empezar a aprender.</p>
             </div>
         `;
     }
+}
+
+function mostrarErrorModulo() {
+    mostrarBienvenidaModulos();
 }
 
 // ===============================
@@ -1155,6 +1196,7 @@ function inicializarFuncionalidades() {
     configurarLogout();
     configurarBotonesModulos();
     manejarNavegacion();
+    configurarBotonSiguiente();
 }
 
 function configurarProgreso() {
@@ -1272,11 +1314,11 @@ function configurarMenusUsuario() {
 function configurarLogout() {
     const logoutBtn = document.getElementById('logout-btn');
     const logoutBtnMobile = document.getElementById('logout-btn-mobile');
-    
+
     if (logoutBtn) {
         logoutBtn.addEventListener('click', cerrarSesion);
     }
-    
+
     if (logoutBtnMobile) {
         logoutBtnMobile.addEventListener('click', cerrarSesion);
     }
@@ -1284,10 +1326,10 @@ function configurarLogout() {
 
 async function cerrarSesion(e) {
     e.preventDefault();
-    
+
     const token = localStorage.getItem('auth_token');
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
-    
+
     try {
         await fetch(`${apiUrl}/logout`, {
             method: 'POST',
@@ -1306,7 +1348,7 @@ async function cerrarSesion(e) {
         localStorage.removeItem('user_nombre');
         localStorage.removeItem('user_apellido');
         localStorage.removeItem('user_email');
-        
+
         // Limpiar sesión en el servidor
         try {
             await fetch('/api/clear-session-token', {
@@ -1318,10 +1360,120 @@ async function cerrarSesion(e) {
         } catch (error) {
             console.error('Error limpiando sesión:', error);
         }
-        
+
         // Usar la función de redirección consistente
         redirigirALogin();
     }
+}
+
+function configurarBotonSiguiente() {
+    const btnNext = document.getElementById('btnNext');
+    if (!btnNext) return;
+
+    btnNext.addEventListener('click', async () => {
+        const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+        const token = localStorage.getItem('auth_token');
+
+        // Deshabilitar botón mientras procesa
+        btnNext.disabled = true;
+        const textoOriginal = btnNext.textContent;
+        btnNext.textContent = 'Cargando...';
+
+        try {
+            if (leccionActualIndex === -1) {
+                // ===== DESDE INTRODUCCIÓN: ir a Lección 1 =====
+                const lecciones = window.leccionesOrdenadas;
+                if (!lecciones || lecciones.length === 0) {
+                    mostrarMensajeBloqueado('No hay lecciones disponibles en este módulo');
+                    return;
+                }
+
+                // Marcar introducción como vista en la API (si el backend lo soporta)
+                // Algunos backends usan lección index 0 para la intro
+                // Avanzamos a la lección 1
+                leccionActualIndex = 0;
+                const primeraLeccion = lecciones[0];
+
+                // Marcar la primera lección como "desbloqueada" actualizando progreso
+                await marcarLeccionVista(moduloActual.id, primeraLeccion.id, true);
+
+                // Cargar la primera lección
+                await cargarLeccion(moduloActual.slug, primeraLeccion.slug);
+
+                // Actualizar sidebar: activar botón de Lección 1
+                actualizarSidebarActivo(0);
+
+            } else {
+                // ===== DESDE UNA LECCIÓN: marcar como vista e ir a la siguiente =====
+                const lecciones = window.leccionesOrdenadas;
+                const leccionActual = lecciones[leccionActualIndex];
+
+                if (leccionActual) {
+                    // Marcar lección actual como vista
+                    await marcarLeccionVista(moduloActual.id, leccionActual.id, true);
+                }
+
+                const siguienteIndex = leccionActualIndex + 1;
+
+                if (siguienteIndex < lecciones.length) {
+                    // Hay una lección siguiente
+                    leccionActualIndex = siguienteIndex;
+                    const siguienteLeccion = lecciones[siguienteIndex];
+
+                    await cargarLeccion(moduloActual.slug, siguienteLeccion.slug);
+                    actualizarSidebarActivo(siguienteIndex);
+
+                } else {
+                    // Última lección completada → ir a Evaluación
+                    leccionActualIndex = lecciones.length; // índice "evaluación"
+                    await cargarEvaluacion(moduloActual.id);
+                    actualizarSidebarActivoEvaluacion();
+
+                    // Cambiar texto del botón
+                    btnNext.textContent = 'Ir a Evaluación';
+                    btnNext.disabled = false;
+                    return;
+                }
+            }
+
+            // Scroll al inicio del contenido
+            document.getElementById('contentSection')?.scrollTo({ top: 0, behavior: 'smooth' });
+
+        } catch (error) {
+            console.error('Error en botón Siguiente:', error);
+        } finally {
+            btnNext.disabled = false;
+            btnNext.textContent = textoOriginal;
+        }
+    });
+}
+
+function actualizarSidebarActivo(leccionIndex) {
+    document.querySelectorAll('.sidebar button').forEach(btn => {
+        btn.classList.remove('active');
+
+        if (parseInt(btn.dataset.leccionIndex) === leccionIndex) {
+            // Este botón es el que se activa ahora
+            btn.classList.add('active');
+            btn.classList.remove('locked');
+
+            // Eliminar el ícono de candado del HTML del botón
+            const lockIcon = btn.querySelector('.icon-lock');
+            if (lockIcon) lockIcon.remove();
+        }
+        // NO pre-desbloquear la siguiente lección — se desbloquea cuando el usuario
+        // llegue a ella presionando "Siguiente" desde la lección actual
+    });
+}
+
+function actualizarSidebarActivoEvaluacion() {
+    document.querySelectorAll('.sidebar button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tipo === 'evaluacion') {
+            btn.classList.add('active');
+            btn.classList.remove('locked');
+        }
+    });
 }
 
 function configurarBotonesModulos() {
@@ -1342,18 +1494,18 @@ function configurarBotonesModulos() {
 
 function manejarNavegacion() {
     let navegacionManual = false;
-    
+
     document.addEventListener('click', (e) => {
         const link = e.target.closest('a');
         if (link && link.getAttribute('href') && !link.getAttribute('href').startsWith('#')) {
             navegacionManual = true;
         }
     });
-    
-    window.addEventListener('popstate', function(event) {
+
+    window.addEventListener('popstate', function (event) {
         const token = localStorage.getItem('auth_token');
         const currentPath = window.location.pathname;
-        
+
         if (token) {
             if (!navegacionManual) {
                 setTimeout(() => {
@@ -1363,13 +1515,13 @@ function manejarNavegacion() {
             navegacionManual = false;
             return;
         }
-        
+
         const publicRoutes = ['/login', '/register', '/recuperar', '/nueva_contrasena', '/enlace'];
         if (!publicRoutes.includes(currentPath) && !token) {
             redirigirALogin();
         }
     });
-    
+
     if (!sessionStorage.getItem('historial_inicializado')) {
         history.replaceState({ page: 'current' }, '', window.location.href);
         sessionStorage.setItem('historial_inicializado', 'true');
@@ -1380,29 +1532,29 @@ function manejarNavegacion() {
 // INTERCEPTOR DE FETCH GLOBAL
 // ===============================
 
-(function() {
+(function () {
     const originalFetch = window.fetch;
     let redirigiendo = false;
-    
-    window.fetch = async function(url, options = {}) {
+
+    window.fetch = async function (url, options = {}) {
         if (url.includes('localhost:8001') || url.includes('/api/')) {
             const token = localStorage.getItem('auth_token');
-            
+
             if (token) {
                 options.headers = {
                     ...options.headers,
                     'Authorization': `Bearer ${token}`
                 };
             }
-            
+
             try {
                 const response = await originalFetch(url, options);
-                
+
                 if (response.status === 401 && !redirigiendo) {
                     const urlString = url.toString();
                     const peticionesCriticas = ['/me', '/logout'];
                     const esCritica = peticionesCriticas.some(p => urlString.includes(p));
-                    
+
                     if (esCritica) {
                         redirigiendo = true;
                         // Limpiar localStorage parcialmente (mantener user_avatar para persistencia)
@@ -1415,14 +1567,14 @@ function manejarNavegacion() {
                         mostrarMensajeSesionExpirada();
                     }
                 }
-                
+
                 return response;
             } catch (error) {
                 console.error('Error en fetch:', error);
                 throw error;
             }
         }
-        
+
         return originalFetch(url, options);
     };
 })();

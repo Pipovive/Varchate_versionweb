@@ -42,7 +42,9 @@ Route::get('/enlace', function () {
     Route::get('correo', function () {
     return view('correo');
     });
-
+    Route::get('/terminos', function () {
+    return view('terminos');
+})->name('terminos');
 // ===============================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ===============================

@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const inputId = icon.getAttribute("data-target");
       const input = document.getElementById(inputId);
       if (!input) return;
-      
+
       const isHidden = input.type === "password";
       input.type = isHidden ? "text" : "password";
       icon.classList.toggle("fa-eye");
@@ -31,18 +31,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    
+
     // Limpiar errores anteriores
     clearAllErrors();
-    
+
     const email = loginForm.email.value.trim();
     const password = loginForm.password.value.trim();
-    
+
     // =========================
     // Validaciones del lado del cliente
     // =========================
     let hasClientErrors = false;
-    
+
     // Validar email
     if (!email) {
       showFieldError(loginForm.email, "El correo electrónico es obligatorio");
@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showFieldError(loginForm.email, "Ingresa un correo electrónico válido");
       hasClientErrors = true;
     }
-    
+
     // Validar password
     if (!password) {
       showFieldError(loginForm.password, "La contraseña es obligatoria");
@@ -60,21 +60,21 @@ document.addEventListener("DOMContentLoaded", () => {
       showFieldError(loginForm.password, "La contraseña debe tener al menos 8 caracteres");
       hasClientErrors = true;
     }
-    
+
     if (hasClientErrors) return;
-    
+
     // Mostrar estado de carga
     const submitBtn = loginForm.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = "Iniciando sesión...";
-    
+
     // =========================
     // Petición al servidor
     // =========================
     try {
-      const apiBase = loginForm.dataset.apiUrl; 
-      
+      const apiBase = loginForm.dataset.apiUrl;
+
       const response = await fetch(`${apiBase}/login`, {
         method: "POST",
         headers: {
@@ -82,9 +82,9 @@ document.addEventListener("DOMContentLoaded", () => {
           "Accept": "application/json",
           "X-Requested-With": "XMLHttpRequest"
         },
-        body: JSON.stringify({ 
-          email, 
-          password 
+        body: JSON.stringify({
+          email,
+          password
         })
       });
 
@@ -129,58 +129,62 @@ document.addEventListener("DOMContentLoaded", () => {
       // =========================
       // Guardar token (verificar si viene como 'token' o 'access_token')
       const token = data.access_token || data.token;
-      
+
       if (token) {
-          // Guardar token en localStorage
-          localStorage.setItem('auth_token', token);
-          
-          // Guardar datos del usuario
-          if (data.user) {
-              localStorage.setItem('user', JSON.stringify(data.user));
-              
-              // También guardar datos individuales para acceso rápido
-              const nombreCompleto = data.user.nombre || data.user.name || '';
-              const partes = nombreCompleto.split(' ');
-              localStorage.setItem('user_nombre', partes[0] || 'Usuario');
-              localStorage.setItem('user_apellido', partes.slice(1).join(' ') || '');
-              localStorage.setItem('user_email', data.user.email || '');
-              if (data.user.avatar) {
-                  localStorage.setItem('user_avatar', data.user.avatar);
-              }
+        // Guardar token en localStorage
+        localStorage.setItem('auth_token', token);
+
+        // Guardar datos del usuario
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+
+          // También guardar datos individuales para acceso rápido
+          const nombreCompleto = data.user.nombre || data.user.name || '';
+          const partes = nombreCompleto.split(' ');
+          localStorage.setItem('user_nombre', partes[0] || 'Usuario');
+          localStorage.setItem('user_apellido', partes.slice(1).join(' ') || '');
+          localStorage.setItem('user_email', data.user.email || '');
+          if (data.user.avatar) {
+            localStorage.setItem('user_avatar', data.user.avatar);
           }
-          
-          // Mostrar mensaje de éxito
-          showSuccessMessage("¡Inicio de sesión exitoso! Redirigiendo...");
-          
-          // Guardar token en sesión del servidor
-          try {
-              // Obtener token CSRF
-              const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-              
-              const sessionResponse = await fetch('/api/set-session-token', {
-                  method: 'POST',
-                  headers: {
-                      'Content-Type': 'application/json',
-                      'X-Requested-With': 'XMLHttpRequest',
-                      'X-CSRF-TOKEN': csrfToken
-                  },
-                  body: JSON.stringify({ token: token })
-              });
-              
-              if (sessionResponse.ok) {
-                  // Redirigir a la vista de módulo principal
-                  setTimeout(() => {
-                      window.location.href = "/modulo";
-                  }, 1500);
-              } else {
-                  showFormError("Error al guardar sesión. Inténtalo de nuevo");
-              }
-          } catch (error) {
-              console.error('Error al guardar sesión:', error);
-              showFormError("Error al guardar sesión. Inténtalo de nuevo");
+        }
+
+        // Mostrar mensaje de éxito
+        showSuccessMessage("¡Inicio de sesión exitoso! Redirigiendo...");
+
+        // Guardar token en sesión del servidor
+        try {
+          // Obtener token CSRF
+          const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+          // Usar URL desde data attribute para soportar subdirectorios
+          const sessionUrl = loginForm.dataset.sessionUrl;
+          const modulosUrl = loginForm.dataset.modulosUrl;
+
+          const sessionResponse = await fetch(sessionUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ token: token })
+          });
+
+          if (sessionResponse.ok) {
+            // Redirigir a la vista de módulo principal
+            setTimeout(() => {
+              window.location.href = modulosUrl;
+            }, 1500);
+          } else {
+            showFormError("Error al guardar sesión. Inténtalo de nuevo");
           }
+        } catch (error) {
+          console.error('Error al guardar sesión:', error);
+          showFormError("Error al guardar sesión. Inténtalo de nuevo");
+        }
       } else {
-          showFormError("Error: No se recibió el token de autenticación");
+        showFormError("Error: No se recibió el token de autenticación");
       }
 
     } catch (error) {
@@ -212,7 +216,7 @@ function isValidEmail(email) {
 function showFieldError(input, message) {
   removeFieldError(input);
   input.classList.add('input-error');
-  
+
   const errorDiv = document.createElement('div');
   errorDiv.className = 'field-error';
   errorDiv.textContent = message;
@@ -221,7 +225,7 @@ function showFieldError(input, message) {
   errorDiv.style.marginTop = '4px';
   errorDiv.style.marginBottom = '4px';
   errorDiv.style.textAlign = 'left';
-  
+
   if (input.parentElement.classList.contains('input-pass')) {
     input.parentElement.parentElement.insertBefore(errorDiv, input.parentElement.nextSibling);
   } else {
@@ -234,7 +238,7 @@ function showFieldError(input, message) {
 // =========================
 function removeFieldError(input) {
   input.classList.remove('input-error');
-  
+
   if (input.parentElement.classList.contains('input-pass')) {
     const nextElement = input.parentElement.parentElement.nextElementSibling;
     if (nextElement && nextElement.classList.contains('field-error')) {
@@ -253,14 +257,14 @@ function removeFieldError(input) {
 // =========================
 function showFormError(message) {
   removeFormError();
-  
+
   const loginForm = document.getElementById("loginForm");
   const errorBox = document.createElement("div");
   errorBox.classList.add("login-error", "form-error");
   errorBox.textContent = message;
-  
+
   loginForm.prepend(errorBox);
-  
+
   setTimeout(() => {
     const error = document.querySelector('.form-error');
     if (error) error.remove();
@@ -290,7 +294,7 @@ function showSuccessMessage(message) {
   successBox.style.marginBottom = '15px';
   successBox.style.borderRadius = '6px';
   successBox.style.fontSize = '0.9rem';
-  
+
   loginForm.prepend(successBox);
 }
 
@@ -308,9 +312,9 @@ function showResendEmailOption(form, email) {
       Reenviar correo
     </button>
   `;
-  
+
   form.appendChild(resendDiv);
-  
+
   document.getElementById('resendEmailBtn')?.addEventListener('click', async () => {
     try {
       const apiBase = form.dataset.apiUrl;
@@ -322,7 +326,7 @@ function showResendEmailOption(form, email) {
         },
         body: JSON.stringify({ email })
       });
-      
+
       if (response.ok) {
         showSuccessMessage('Correo reenviado. Revisa tu bandeja de entrada');
         resendDiv.remove();
@@ -340,13 +344,13 @@ function clearAllErrors() {
   document.querySelectorAll('.input-error').forEach(input => {
     input.classList.remove('input-error');
   });
-  
+
   document.querySelectorAll('.field-error').forEach(error => {
     error.remove();
   });
-  
+
   removeFormError();
-  
+
   document.querySelectorAll('.login-success').forEach(success => {
     success.remove();
   });
@@ -358,7 +362,7 @@ function clearAllErrors() {
 function showVerificationModal(message, email) {
   // Crear modal si no existe
   let modal = document.getElementById('emailVerificationModal');
-  
+
   if (!modal) {
     // Crear modal dinámicamente
     modal = document.createElement('div');
@@ -384,50 +388,50 @@ function showVerificationModal(message, email) {
     `;
     document.body.appendChild(modal);
   }
-  
+
   // Actualizar mensaje
   const modalMessage = document.getElementById('modalMessage');
   if (modalMessage) modalMessage.textContent = message;
-  
+
   // Mostrar modal
   modal.style.display = 'flex';
-  
+
   // Guardar email para reenvío
   modal.dataset.email = email;
-  
+
   // Configurar botones
   const closeBtn = modal.querySelector('.modal-close');
   const closeModalBtn = document.getElementById('closeModalBtn');
   const resendBtn = document.getElementById('resendEmailBtn');
   const statusDiv = document.getElementById('resendStatus');
-  
+
   // Función para cerrar
   const closeModal = () => {
     modal.style.display = 'none';
     if (statusDiv) statusDiv.innerHTML = '';
   };
-  
+
   // Event listeners
   closeBtn?.addEventListener('click', closeModal);
   closeModalBtn?.addEventListener('click', closeModal);
-  
+
   // Cerrar al hacer clic fuera del modal
   modal.addEventListener('click', (e) => {
     if (e.target === modal) closeModal();
   });
-  
+
   // Reenviar email
   resendBtn?.addEventListener('click', async () => {
     const email = modal.dataset.email;
     const apiBase = document.getElementById('loginForm')?.dataset.apiUrl;
-    
+
     if (!email || !apiBase) return;
-    
+
     // Deshabilitar botón
     resendBtn.disabled = true;
     resendBtn.textContent = 'Enviando...';
     statusDiv.innerHTML = '';
-    
+
     try {
       const response = await fetch(`${apiBase}/email/resend`, {
         method: 'POST',
@@ -437,9 +441,9 @@ function showVerificationModal(message, email) {
         },
         body: JSON.stringify({ email })
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         statusDiv.innerHTML = `<span class="status-success">✅ ${data.message || 'Correo reenviado'}</span>`;
       } else {

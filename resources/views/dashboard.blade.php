@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>html { scroll-behavior: smooth; }</style>
 
     <title>Varchate</title>
     <!-- Enlace al archivo CSS externo -->
@@ -64,7 +65,7 @@
             <div class="logo">
                 <img src="{{ asset('../images/logo_blanco.png') }}" alt="Logo">
             </div>
-            <a href="login" class="login-btn">
+            <a href="{{ route('login') }}" class="login-btn">
                 <i class="fa-slab-press fa-regular fa-user"></i>
                 Login
             </a>
@@ -75,21 +76,21 @@
         <nav class="navbar navbar-lower">
             <div class="hamburger">☰</div>
             <ul>
-                <li><a href="#">INTRODUCCIÓN A LA PROGRAMACIÓN</a></li>
-                <li><a href="#">HTML</a></li>
-                <li><a href="#">CSS</a></li>
-                <li><a href="#">JAVASCRIPT</a></li>
-                <li><a href="#">SQL</a></li>
-                <li><a href="#">PHP</a></li>
+                <li><a href="#seccion-intro">INTRODUCCIÓN A LA PROGRAMACIÓN</a></li>
+                <li><a href="#seccion-html">HTML</a></li>
+                <li><a href="#seccion-css">CSS</a></li>
+                <li><a href="#seccion-js">JAVASCRIPT</a></li>
+                <li><a href="#seccion-sql">SQL</a></li>
+                <li><a href="#seccion-php">PHP</a></li>
             </ul>
 
             <div id="dropdown" class="dropdown-menu">
-                <a href="#">INTRODUCCIÓN A LA PROGRAMACIÓN</a>
-                <a href="#">HTML</a>
-                <a href="#">CSS</a>
-                <a href="#">JAVASCRIPT</a>
-                <a href="#">SQL</a>
-                <a href="#">PHP</a>
+                <a href="#seccion-intro">INTRODUCCIÓN A LA PROGRAMACIÓN</a>
+                <a href="#seccion-html">HTML</a>
+                <a href="#seccion-css">CSS</a>
+                <a href="#seccion-js">JAVASCRIPT</a>
+                <a href="#seccion-sql">SQL</a>
+                <a href="#seccion-php">PHP</a>
             </div>
         </nav>
 
@@ -101,7 +102,7 @@
                 <p>Bienvenido a VARCHATE.</p>
                 <p>Aprendé a programar desde cero, practicá con ejercicios interactivos y avanzá paso a paso.<br>
                     Tu código, tu progreso, tu poder.</p>
-                <button class="start-btn">Empieza a programar</button>
+                <button class="start-btn" onclick="window.location.href='{{ route('login') }}'">Empieza a programar</button>
             </div>
             <div class="right-content">
                 <!-- Aquí luego puedes colocar una imagen, video, ilustración, etc. -->
@@ -111,7 +112,7 @@
 
     </header>
     <!-- iconos introduccion -->
-    <section class="features-section">
+    <section id="seccion-intro" class="features-section">
         <h2>Introducción a la <br>programación </h2>
         <p>Domina los fundamentos que harán fácil aprender cualquier lenguaje de programación.</p>
         <div class="icons-row">
@@ -125,13 +126,13 @@
 
 
     <!-- Contenido HTML -->
-    <section class="container">
+    <section id="seccion-html" class="container">
         <div class="left-content-html">
             <h1>HTML</h1>
             <p class="texto-justificado">
                 Aprende a estructurar páginas web desde cero con el lenguaje base de Internet.
             </p>
-            <button class="start-btn">Aprende HTML</button>
+            <button class="start-btn" onclick="window.location.href='{{ route('login') }}'">Aprende HTML</button>
         </div>
         <div class="right-content-html">
             <!-- Aquí luego puedes colocar una imagen, video, ilustración, etc. -->
@@ -162,13 +163,13 @@
 
 
     <!-- Contenido CSS -->
-    <section class="container-css">
+    <section id="seccion-css" class="container-css">
         <div class="left-content-css">
             <h1>CSS</h1>
             <p class="texto-justificado-css">
                 Dale estilo a tus páginas web y convierte un simple HTML en un diseño atractivo y moderno.
             </p>
-            <button class="start-btn">Aprende CSS</button>
+            <button class="start-btn" onclick="window.location.href='{{ route('login') }}'">Aprende CSS</button>
         </div>
         <div class="right-content-css">
             <!-- Editor de código CSS -->
@@ -196,13 +197,13 @@ h1 {
     </section>
 
     <!-- Contenido JS -->
-    <section class="container-js">
+    <section id="seccion-js" class="container-js">
         <div class="left-content-js">
             <h1>JS</h1>
             <p class="texto-justificado-js">
                 Aprende a agregar interactividad a tus páginas web y manipular el DOM con JavaScript.
             </p>
-            <button class="start-btn">Aprende JS</button>
+            <button class="start-btn" onclick="window.location.href='{{ route('login') }}'">Aprende JS</button>
         </div>
         <div class="right-content-js">
             <!-- Editor de código JS -->
@@ -251,13 +252,13 @@ console.log("Aquí puedes ver mensajes, valores de variables y resultados de tus
 
 
     <!-- Contenido SQL -->
-    <section class="container-sql">
+    <section id="seccion-sql" class="container-sql">
         <div class="left-content-sql">
             <h1>SQL</h1>
             <p class="texto-justificado-sql">
                 Aprende a consultar y manipular bases de datos usando el lenguaje SQL.
             </p>
-            <button class="start-btn">Aprende SQL</button>
+            <button class="start-btn" onclick="window.location.href='{{ route('login') }}'">Aprende SQL</button>
         </div>
         <div class="right-content-sql">
             <!-- Editor de código SQL -->
@@ -278,13 +279,13 @@ SELECT * FROM Customers;
         </div>
     </section>
 
-    <section class="container-php">
+    <section id="seccion-php" class="container-php">
         <div class="left-content-php">
             <h1>PHP</h1>
             <p class="texto-justificado-php">
                 Aprende a crear páginas web dinámicas con PHP.
             </p>
-            <button class="start-btn">Aprende PHP</button>
+            <button class="start-btn" onclick="window.location.href='{{ route('login') }}'">Aprende PHP</button>
         </div>
         <div class="right-content-php">
             <div class="editor-container-php">

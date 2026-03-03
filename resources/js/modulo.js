@@ -946,6 +946,10 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
             const introduccionContent = document.getElementById('introduccionContent');
             const leccionContent = document.getElementById('leccionContent');
 
+            // Mostrar el botón "Siguiente" en lecciones normales
+            const btnNextLeccion = document.getElementById('btnNext');
+            if (btnNextLeccion) btnNextLeccion.style.display = '';
+
             if (introduccionContent) introduccionContent.style.display = 'none';
             if (leccionContent) {
                 leccionContent.style.display = 'block';
@@ -1018,7 +1022,12 @@ async function cargarEvaluacion(evaluacionId) {
     mostrarSpinner(true);
 
     try {
-        console.log('📝 Cargando evaluación para módulo:', moduloActual.id);
+        console.log('📝 Cargando evaluación para módulo:', moduloActual?.id);
+
+        if (!moduloActual?.id) {
+            console.error('No hay módulo actual');
+            return;
+        }
 
         const response = await fetch(`${apiUrl}/modulos/${moduloActual.id}/evaluacion`, {
             headers: {
@@ -1028,17 +1037,28 @@ async function cargarEvaluacion(evaluacionId) {
         });
 
         if (response.ok) {
-            const evaluacion = await response.json();
-            console.log('✅ Evaluación cargada:', evaluacion);
+            const json = await response.json();
+            console.log('✅ Evaluación cargada:', json);
 
-            // Mostrar interfaz de evaluación
             const introduccionContent = document.getElementById('introduccionContent');
             const leccionContent = document.getElementById('leccionContent');
+            // Ocultar el botón "Siguiente" en la sección de evaluación
+            const btnNext = document.getElementById('btnNext');
+            if (btnNext) btnNext.style.display = 'none';
 
             if (introduccionContent) introduccionContent.style.display = 'none';
             if (leccionContent) {
                 leccionContent.style.display = 'block';
-                leccionContent.innerHTML = renderizarEvaluacion(evaluacion);
+                leccionContent.innerHTML = renderizarEvaluacion(json);
+
+                // Enlazar botón de iniciar evaluación
+                const btnIniciar = leccionContent.querySelector('#btn-iniciar-evaluacion');
+                if (btnIniciar && !btnIniciar.disabled) {
+                    btnIniciar.addEventListener('click', () => {
+                        const evalId = json.data?.evaluacion?.id;
+                        iniciarEvaluacion(evalId);
+                    });
+                }
             }
         } else {
             console.error('Error cargando evaluación:', response.status);
@@ -1053,42 +1073,134 @@ async function cargarEvaluacion(evaluacionId) {
     }
 }
 
-function renderizarEvaluacion(evaluacion) {
-    const evaluacionAprobada = progresoModulo?.evaluacion_aprobada || false;
+function renderizarEvaluacion(json) {
+    const imagesBase = document.querySelector('main.container')?.dataset.imagesUrl || '/images';
+    const mascotaUrl = `${imagesBase}/gato_evaluacion.png`;
+
+    // Extraer datos del JSON de la API: { success, data: { evaluacion, estado_usuario } }
+    const data = json?.data || {};
+    const evaluacion = data.evaluacion || {};
+    const estadoUsuario = data.estado_usuario || {};
+
+    const evaluacionAprobada = estadoUsuario.ya_aprobo || progresoModulo?.evaluacion_aprobada || false;
+    const puedeIntentar = estadoUsuario.puede_intentar !== false;
+    const mensajeBloqueo = estadoUsuario.mensaje || '';
+    const intentosCompletados = estadoUsuario.intentos_completados || 0;
+    const intentosDisponibles = estadoUsuario.intentos_disponibles;
+    const mejorPorcentaje = estadoUsuario.mejor_porcentaje || 0;
+
+    const titulo = evaluacion.titulo || 'Evaluación';
+    const descripcion = evaluacion.descripcion || '';
+    const tiempoLimite = evaluacion.tiempo_limite || null;
+    const numeroPreguntas = evaluacion.numero_preguntas || null;
+    const puntajeMinimo = evaluacion.puntaje_minimo || null;
+    const maxIntentos = evaluacion.max_intentos || null;
+
+    // Líneas de información
+    let infoLines = '';
+    if (tiempoLimite) {
+        infoLines += `<p class="eval-info-line"><strong>Duración:</strong> ${tiempoLimite} minutos</p>`;
+    }
+    if (numeroPreguntas) {
+        infoLines += `<p class="eval-info-line"><strong>Preguntas:</strong> ${numeroPreguntas} preguntas</p>`;
+    }
+    if (puntajeMinimo) {
+        infoLines += `<p class="eval-info-line"><strong>Puntaje mínimo para aprobar:</strong> ${puntajeMinimo}%</p>`;
+    }
+    if (maxIntentos) {
+        const disponibles = intentosDisponibles !== undefined ? intentosDisponibles : maxIntentos;
+        infoLines += `<p class="eval-info-line"><strong>Intentos disponibles:</strong> ${disponibles} de ${maxIntentos}</p>`;
+    }
+    if (descripcion) {
+        infoLines += `<p class="eval-info-line eval-desc">${descripcion}</p>`;
+    }
+    infoLines += `<p class="eval-info-line eval-nota">Al finalizar, obtendrás tu puntaje automáticamente.</p>`;
+
+    // Badge estado
+    let badgeHTML = '';
+    if (evaluacionAprobada) {
+        badgeHTML = `<div class="eval-badge eval-badge--aprobado">✓ ¡Ya aprobaste esta evaluación con ${mejorPorcentaje}%!</div>`;
+    } else if (intentosCompletados > 0) {
+        badgeHTML = `<div class="eval-badge eval-badge--intento">Mejor puntaje hasta ahora: <strong>${mejorPorcentaje}%</strong></div>`;
+    }
+
+    // Botón
+    let botonHTML = '';
+    if (evaluacionAprobada) {
+        botonHTML = `<button class="btn-realizar-evaluacion btn-realizar-evaluacion--aprobado" id="btn-iniciar-evaluacion" disabled>✓ Evaluación aprobada</button>`;
+    } else if (!puedeIntentar) {
+        botonHTML = `<button class="btn-realizar-evaluacion btn-realizar-evaluacion--bloqueado" id="btn-iniciar-evaluacion" disabled>🔒 ${mensajeBloqueo || 'No puedes intentar ahora'}</button>`;
+    } else if (estadoUsuario.tiene_intento_en_progreso) {
+        botonHTML = `<button class="btn-realizar-evaluacion" id="btn-iniciar-evaluacion">Continuar evaluación</button>`;
+    } else {
+        botonHTML = `<button class="btn-realizar-evaluacion" id="btn-iniciar-evaluacion">Realizar evaluación</button>`;
+    }
 
     return `
-        <div class="evaluacion-container">
-            <h2>${evaluacion.titulo || 'Evaluación Final'}</h2>
-            <p>${evaluacion.descripcion || 'Responde las siguientes preguntas'}</p>
-            <p><strong>Tiempo límite:</strong> ${evaluacion.tiempo_limite || 30} minutos</p>
-            <p><strong>Puntaje mínimo:</strong> ${evaluacion.puntaje_minimo || 70}%</p>
-            <p><strong>Número de preguntas:</strong> ${evaluacion.numero_preguntas || 10}</p>
-            
-            ${evaluacionAprobada ? `
-                <div style="margin-top: 20px; padding: 15px; background-color: #d4edda; border-radius: 8px; color: #155724;">
-                    <strong>✓ Evaluación ya aprobada</strong>
-                    <p>Ya has aprobado esta evaluación. Puedes ver tu certificado en la sección de logros.</p>
-                </div>
-            ` : ''}
-            
-            <div style="margin-top: 30px;">
-                <button class="btn-start-evaluation" onclick="iniciarEvaluacion(${evaluacion.id})" ${evaluacionAprobada ? 'disabled' : ''}>
-                    ${evaluacionAprobada ? 'Ya aprobada' : 'Comenzar Evaluación'}
-                </button>
+        <div class="evaluacion-vista">
+            <div class="evaluacion-header">
+                <h2 class="evaluacion-titulo">${titulo}</h2>
             </div>
-        </div>
-    `;
+            <div class="evaluacion-body">
+                <div class="evaluacion-info">
+                    ${infoLines}
+                    ${badgeHTML}
+                </div>
+                <div class="evaluacion-mascota">
+                    <img src="${mascotaUrl}" alt="Mascota evaluación" class="eval-mascota-img">
+                </div>
+            </div>
+            <div class="evaluacion-footer">
+                ${botonHTML}
+            </div>
+        </div>`;
 }
 
 window.iniciarEvaluacion = async function (evaluacionId) {
-    console.log('Iniciar evaluación:', evaluacionId);
-    // Aquí iría la lógica para iniciar la evaluación
-    mostrarMensajeExito('Función de evaluación en desarrollo');
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
+    if (!moduloActual?.id) {
+        mostrarMensajeBloqueado('No se pudo identificar el módulo');
+        return;
+    }
+
+    mostrarSpinner(true);
+    try {
+        const response = await fetch(`${apiUrl}/modulos/${moduloActual.id}/evaluacion/iniciar`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const json = await response.json();
+
+        if (response.ok && json.success) {
+            console.log('✅ Evaluación iniciada:', json.data);
+            mostrarMensajeExito('Evaluación iniciada correctamente');
+            // TODO: renderizar preguntas con json.data.preguntas
+        } else {
+            const msg = json.message || 'No se pudo iniciar la evaluación';
+            mostrarMensajeBloqueado(msg);
+        }
+    } catch (error) {
+        console.error('Error iniciando evaluación:', error);
+        mostrarMensajeBloqueado('Error de conexión al intentar iniciar la evaluación');
+    } finally {
+        mostrarSpinner(false);
+    }
 };
+
 
 function mostrarIntroduccion() {
     const introduccionContent = document.getElementById('introduccionContent');
     const leccionContent = document.getElementById('leccionContent');
+    // Mostrar el botón "Siguiente" al volver a la introducción
+    const btnNext = document.getElementById('btnNext');
+    if (btnNext) btnNext.style.display = '';
 
     if (introduccionContent) {
         introduccionContent.style.display = 'block';

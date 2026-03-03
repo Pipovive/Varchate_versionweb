@@ -110,6 +110,7 @@
       data-modulo-base-url="{{ url('/modulo') }}"
       data-lock-url="{{ asset('images/Lock.svg') }}"
       data-avatars-url="{{ asset('avatars') }}"
+      data-images-url="{{ asset('images') }}"
       data-clear-session-url="{{ url('/api/clear-session-token') }}"
       data-login-url="{{ url('/login') }}">
 

@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const token = localStorage.getItem('auth_token');
 
     if (!token) {
-        redirigirALogin();
+        await redirigirALogin();
         return;
     }
 
@@ -33,11 +33,29 @@ document.addEventListener('DOMContentLoaded', async function () {
 });
 
 // Función auxiliar para redirigir a login de manera consistente
-function redirigirALogin(params = '') {
+// Siempre limpia localStorage y la sesión Laravel antes de redirigir
+async function redirigirALogin(params = '') {
+    // Limpiar localStorage
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('user_nombre');
+    localStorage.removeItem('user_apellido');
+    localStorage.removeItem('user_email');
+
+    // Limpiar sesión de Laravel para evitar el loop de redirect
+    try {
+        const mainEl = document.querySelector('main[data-clear-session-url]');
+        const clearSessionUrl = mainEl?.dataset.clearSessionUrl || '/api/clear-session-token';
+        await fetch(clearSessionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (_) { /* ignorar errores de red */ }
+
     // Construir URL absoluta sin barras dobles
     const baseUrl = window.location.origin;
-    const loginUrl = params ? `${baseUrl}/login${params}` : `${baseUrl}/login`;
-    window.location.href = loginUrl;
+    const loginPath = params ? `/login${params}` : '/login';
+    window.location.href = baseUrl + loginPath;
 }
 
 function obtenerSlugDeURL() {
@@ -88,25 +106,19 @@ async function verificarTokenEnSegundoPlano(token) {
                     if (userData.id) localStorage.setItem(`user_avatar_for_${userData.id}`, avatarUrl);
 
                     // Actualizar el DOM directamente
-                    const profilePic = document.getElementById('profile-pic');
-                    const profilePicMobile = document.getElementById('profile-pic-mobile');
-                    if (profilePic) profilePic.src = avatarUrl;
-                    if (profilePicMobile) profilePicMobile.src = avatarUrl;
+                    showProfilePic(document.getElementById('profile-pic'), avatarUrl);
+                    showProfilePic(document.getElementById('profile-pic-mobile'), avatarUrl);
                 }
 
                 cargarDatosUsuario();
             }
         } else {
-            // Token inválido, limpiar y redirigir
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('user');
-            localStorage.removeItem('user_nombre');
-            localStorage.removeItem('user_apellido');
-            localStorage.removeItem('user_email');
-            redirigirALogin('?expired=true');
+            // Token inválido — redirigir a login (redirigirALogin limpia sesión automáticamente)
+            await redirigirALogin('?expired=true');
         }
     } catch (error) {
-        console.error('Error verificando token:', error);
+        // Error de red: NO redirigir, solo loguear. La API puede estar temporalmente caída.
+        console.warn('No se pudo verificar el token (posible error de red):', error);
     }
 }
 
@@ -194,11 +206,20 @@ function cargarDatosUsuario() {
             return `/avatars/${val}`;
         };
         const avatarUrl = buildUrl(avatarToShow);
-        const profilePic = document.getElementById('profile-pic');
-        const profilePicMobile = document.getElementById('profile-pic-mobile');
-        if (profilePic && avatarUrl) profilePic.src = avatarUrl;
-        if (profilePicMobile && avatarUrl) profilePicMobile.src = avatarUrl;
+        showProfilePic(document.getElementById('profile-pic'), avatarUrl);
+        showProfilePic(document.getElementById('profile-pic-mobile'), avatarUrl);
     }
+}
+
+/**
+ * Asigna src a una imagen de perfil y la revela con fade-in.
+ * La imagen empieza oculta (opacity:0) en el HTML.
+ */
+function showProfilePic(el, src) {
+    if (!el || !src) return;
+    el.onload = () => { el.style.opacity = '1'; };
+    el.onerror = () => { el.style.opacity = '1'; }; // mostrar aunque falle
+    el.src = src;
 }
 
 // ===============================
@@ -1353,6 +1374,11 @@ async function cerrarSesion(e) {
     const token = localStorage.getItem('auth_token');
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
 
+    // Obtener URLs desde data-attributes (soporta subdirectorios)
+    const mainEl = document.querySelector('main[data-clear-session-url]');
+    const clearSessionUrl = mainEl?.dataset.clearSessionUrl || '/api/clear-session-token';
+    const loginUrl = mainEl?.dataset.loginUrl || '/login';
+
     try {
         await fetch(`${apiUrl}/logout`, {
             method: 'POST',
@@ -1374,20 +1400,22 @@ async function cerrarSesion(e) {
 
         // Limpiar sesión en el servidor
         try {
-            await fetch('/api/clear-session-token', {
+            await fetch(clearSessionUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
                 }
             });
         } catch (error) {
             console.error('Error limpiando sesión:', error);
         }
 
-        // Usar la función de redirección consistente
-        redirigirALogin();
+        // Redirigir al login
+        window.location.href = loginUrl;
     }
 }
+
 
 function configurarBotonSiguiente() {
     const btnNext = document.getElementById('btnNext');
@@ -1559,8 +1587,14 @@ function manejarNavegacion() {
     const originalFetch = window.fetch;
     let redirigiendo = false;
 
+    // Rutas locales de Laravel que NO deben recibir el Bearer token
+    const rutasLocales = ['/api/set-session-token', '/api/clear-session-token'];
+
     window.fetch = async function (url, options = {}) {
-        if (url.includes('localhost:8001') || url.includes('/api/')) {
+        const urlString = url.toString();
+        const esRutaLocal = rutasLocales.some(r => urlString.includes(r));
+
+        if (!esRutaLocal && (urlString.includes('localhost:8001') || urlString.includes('/api/'))) {
             const token = localStorage.getItem('auth_token');
 
             if (token) {
@@ -1574,20 +1608,14 @@ function manejarNavegacion() {
                 const response = await originalFetch(url, options);
 
                 if (response.status === 401 && !redirigiendo) {
-                    const urlString = url.toString();
                     const peticionesCriticas = ['/me', '/logout'];
                     const esCritica = peticionesCriticas.some(p => urlString.includes(p));
 
                     if (esCritica) {
                         redirigiendo = true;
-                        // Limpiar localStorage parcialmente (mantener user_avatar para persistencia)
-                        localStorage.removeItem('auth_token');
-                        localStorage.removeItem('user');
-                        localStorage.removeItem('user_nombre');
-                        localStorage.removeItem('user_apellido');
-                        localStorage.removeItem('user_email');
-
                         mostrarMensajeSesionExpirada();
+                        // redirigirALogin() es async y limpia sesión Laravel automáticamente
+                        redirigirALogin('?expired=true');
                     }
                 }
 
@@ -1601,6 +1629,7 @@ function manejarNavegacion() {
         return originalFetch(url, options);
     };
 })();
+
 
 function iniciarVerificacionPeriodica() {
     setInterval(() => {

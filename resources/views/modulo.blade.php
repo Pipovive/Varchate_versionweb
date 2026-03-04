@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title id="pageTitle">Varchate</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- Inicializar tema oscuro lo antes posible para evitar parpadeo -->
+  <script>try{var dm=localStorage.getItem('dark_mode'); if(dm==='1'){document.documentElement.classList.add('dark-mode');}}catch(e){};</script>
   @vite('resources/css/modulo.css')
 </head>
 <body>
@@ -50,7 +52,7 @@
             <img src="{{ asset('images/foto-perfil.png') }}" alt="Usuario" id="profile-pic" tabindex="0" aria-haspopup="true" aria-expanded="false">
 
             <div class="user-menu" id="user-menu" role="menu">
-              <a href="/perfil" class="menu-item" role="menuitem" tabindex="0">
+              <a href="{{ route('perfil') }}" class="menu-item" role="menuitem" tabindex="0">
                 <span>Editar perfil</span>
                 <img src="{{ asset('images/editar-cuadrado.svg') }}" alt="Editar" class="menu-svg">
               </a>
@@ -66,7 +68,7 @@
 <div class="mobile-header">
   <div class="mobile-top">
     <a href="#" class="logo-link">
-      <img src="{{ asset('images/logo.svg') }}" alt="Logo Varchate" class="logo-mobile">
+      <img src="{{ asset('images/logo_blanco.png') }}" alt="Logo Varchate" class="logo-mobile">
     </a>
 
     <div class="mobile-user">
@@ -103,7 +105,10 @@
   </div>
 </div>
 
-<main class="container">
+<main class="container" 
+      data-modulo-base-url="{{ url('/modulo') }}"
+      data-lock-url="{{ asset('images/Lock.svg') }}"
+      data-avatars-url="{{ asset('avatars') }}">
 
   <!-- Nueva barra que incluye el hamburguesa + los top-buttons -->
   <div class="topbar">

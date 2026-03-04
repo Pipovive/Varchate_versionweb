@@ -7,6 +7,20 @@ use Illuminate\Http\Request;
 // RUTAS PÚBLICAS (accesibles sin autenticación)
 // ===============================
 
+// La raíz siempre redirige al dashboard (página principal pública)
+Route::get('/', function () {
+    return redirect('/dashboard');
+});
+
+// Dashboard público - no requiere autenticación
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->name('dashboard');
+
+// ===============================
+// Login, Registro y Recuperación de Contraseña
+// ===============================
+
 Route::get('/login', function () {
     // Si ya hay token, redirigir a módulos
     if (session()->has('auth_token') || request()->cookie('auth_token')) {
@@ -31,46 +45,35 @@ Route::get('/reset-password', function () {
     return view('nueva_contrasena');
 })->name('password.reset');
 
-Route::get('/enlace', function () {
-    return view('enlace');
-});
-
-    Route::get('/', function () {
-        return view('dashboard');
-    });
-
-    Route::get('correo', function () {
+Route::get('correo', function () {
     return view('correo');
-    });
-    Route::get('/terminos', function () {
+});
+  
+Route::get('/terminos', function () {
     return view('terminos');
 })->name('terminos');
+
+
 // ===============================
-// RUTAS PROTEGIDAS (requieren autenticación)
+// RUTAS PROTEGIDAS (requieren token de sesión)
 // ===============================
 
 Route::middleware('auth')->group(function () {
     Route::get('/modulos', function () {
-        return view('modulos');
-    })->name('modulos');
+            return view('modulo');
+        }
+        )->name('modulos');
 
-    Route::get('/modulo', function () {
-        return view('modulo');
-    })->name('modulo');
-
-    Route::get('/modulo/{slug}', function ($slug) {
-        return view('modulo', ['slug' => $slug]);
-    })->name('modulo.detalle');
-
-
-    Route::get('/perfil', function () {
-        return view('perfil');
+        Route::get('/modulo/{slug}', function ($slug) {
+            return view('modulo', ['slug' => $slug]);
+        }
+        )->name('modulo.detalle');
     });
 
-    Route::get('/contrasena_actualizada', function () {
-        return view('contrasena_actualizada');
-    });
-});
+// Perfil: accesible públicamente, la auth real es JWT manejada en JS
+Route::get('/perfil', function () {
+    return view('perfil');
+})->name('perfil');
 
 // ===============================
 // API LOCAL PARA MANEJAR SESIÓN
@@ -89,6 +92,3 @@ Route::post('/api/clear-session-token', function () {
     session()->forget('auth_token');
     return response()->json(['success' => true]);
 });
-
-
-

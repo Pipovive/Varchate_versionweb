@@ -48,7 +48,8 @@ Route::get('/reset-password', function () {
 Route::get('correo', function () {
     return view('correo');
 });
-  
+
+
 Route::get('/terminos', function () {
     return view('terminos');
 })->name('terminos');

@@ -1815,3 +1815,423 @@ function iniciarVerificacionPeriodica() {
 }
 
 iniciarVerificacionPeriodica();
+
+// ===============================
+// EVALUACIÓN — iniciar desde tarjeta
+// ===============================
+
+window.iniciarEvaluacion = async function (evaluacionId) {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
+    if (!moduloActual?.id) {
+        mostrarMensajeBloqueado('No se pudo identificar el módulo');
+        return;
+    }
+
+    mostrarSpinner(true);
+    try {
+        const response = await fetch(`${apiUrl}/modulos/${moduloActual.id}/evaluacion/iniciar`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const json = await response.json();
+
+        if (response.ok && json.success) {
+            console.log('✅ Evaluación iniciada:', json.data);
+            abrirModalEvaluacion(json.data);
+        } else {
+            const msg = json.message || 'No se pudo iniciar la evaluación';
+            mostrarMensajeBloqueado(msg);
+        }
+    } catch (error) {
+        console.error('Error iniciando evaluación:', error);
+        mostrarMensajeBloqueado('Error de conexión al intentar iniciar la evaluación');
+    } finally {
+        mostrarSpinner(false);
+    }
+};
+
+// ===============================
+// MODAL DE EVALUACIÓN
+// ===============================
+
+// Estado interno del modal
+let _evalState = {
+    preguntas: [],
+    respuestas: {},        // { preguntaId: { opcion_id?, parejas? } }
+    comprobadas: {},       // { preguntaId: true/false } → ya comprobó esta pregunta
+    indice: 0,
+    intentoId: null,
+    moduloId: null,
+    timerInterval: null,
+    segundosRestantes: 0,
+    titulo: '',
+};
+
+function abrirModalEvaluacion(data) {
+    _evalState.preguntas = data.preguntas || [];
+    _evalState.intentoId = data.intento_id;
+    _evalState.moduloId = data.modulo_id || moduloActual?.id;
+    _evalState.segundosRestantes = data.tiempo_limite_segundos || 0;
+    _evalState.titulo = data.titulo || moduloActual?.modulo || 'Evaluación';
+    _evalState.respuestas = {};
+    _evalState.comprobadas = {};
+    _evalState.indice = 0;
+
+    const tituloEl = document.getElementById('eval-modal-titulo');
+    if (tituloEl) tituloEl.textContent = _evalState.titulo;
+
+    const overlay = document.getElementById('eval-modal-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    _iniciarTimerModal();
+    _renderizarPreguntaModal(0);
+
+    if (!abrirModalEvaluacion._listenersOk) {
+        abrirModalEvaluacion._listenersOk = true;
+        document.getElementById('eval-modal-cancel-btn')
+            ?.addEventListener('click', _cerrarModalEvaluacion);
+        document.getElementById('eval-modal-prev-btn')
+            ?.addEventListener('click', () => _navigateModal(-1));
+        document.getElementById('eval-modal-check-btn')
+            ?.addEventListener('click', _comprobarRespuesta);
+        document.getElementById('eval-modal-next-btn')
+            ?.addEventListener('click', () => _navigateModal(1));
+        document.getElementById('eval-modal-finish-btn')
+            ?.addEventListener('click', _finalizarEvaluacionModal);
+    }
+}
+
+function _cerrarModalEvaluacion() {
+    clearInterval(_evalState.timerInterval);
+    const overlay = document.getElementById('eval-modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function _iniciarTimerModal() {
+    clearInterval(_evalState.timerInterval);
+    const timerEl = document.getElementById('eval-modal-timer');
+
+    function tick() {
+        const s = _evalState.segundosRestantes;
+        const mm = String(Math.floor(s / 60)).padStart(2, '0');
+        const ss = String(s % 60).padStart(2, '0');
+        if (timerEl) {
+            timerEl.textContent = `${mm}:${ss}`;
+            timerEl.classList.toggle('urgente', s <= 60);
+        }
+        if (s <= 0) {
+            clearInterval(_evalState.timerInterval);
+            mostrarMensajeBloqueado('¡Tiempo agotado! Enviando respuestas automáticamente...');
+            setTimeout(_finalizarEvaluacionModal, 1500);
+            return;
+        }
+        _evalState.segundosRestantes--;
+    }
+
+    tick();
+    _evalState.timerInterval = setInterval(tick, 1000);
+}
+
+function _renderizarPreguntaModal(indice) {
+    const preguntas = _evalState.preguntas;
+    if (!preguntas.length) return;
+
+    const pregunta = preguntas[indice];
+    _evalState.indice = indice;
+
+    const pct = ((indice + 1) / preguntas.length) * 100;
+    const progressEl = document.getElementById('eval-modal-progress');
+    if (progressEl) progressEl.style.width = `${pct}%`;
+
+    const counterEl = document.getElementById('eval-modal-counter');
+    if (counterEl) counterEl.textContent = `Pregunta ${indice + 1} de ${preguntas.length}`;
+
+    const instrEl = document.getElementById('eval-modal-instrucciones');
+    if (instrEl) instrEl.textContent = pregunta.instrucciones || '';
+
+    const questionEl = document.getElementById('eval-modal-question');
+    if (questionEl) questionEl.textContent = pregunta.pregunta;
+
+    const optionsEl = document.getElementById('eval-modal-options');
+    if (!optionsEl) return;
+    optionsEl.innerHTML = '';
+
+    const yaComprobada = pregunta.id in _evalState.comprobadas;
+
+    if (pregunta.tipo === 'seleccion_multiple' || pregunta.tipo === 'verdadero_falso') {
+        _renderOpcionesMultiple(optionsEl, pregunta, yaComprobada);
+    } else if (pregunta.tipo === 'arrastrar_soltar') {
+        _renderDragAndDrop(optionsEl, pregunta, yaComprobada);
+    }
+
+    const prevBtn = document.getElementById('eval-modal-prev-btn');
+    const checkBtn = document.getElementById('eval-modal-check-btn');
+    const nextBtn = document.getElementById('eval-modal-next-btn');
+    const finishBtn = document.getElementById('eval-modal-finish-btn');
+    const esUltima = indice === preguntas.length - 1;
+
+    if (prevBtn) prevBtn.disabled = (indice === 0);
+    if (checkBtn) { checkBtn.style.display = yaComprobada ? 'none' : ''; }
+    if (nextBtn) { nextBtn.style.display = (yaComprobada && !esUltima) ? '' : 'none'; }
+    if (finishBtn) { finishBtn.style.display = (yaComprobada && esUltima) ? '' : 'none'; }
+}
+
+function _renderOpcionesMultiple(container, pregunta, bloqueada) {
+    const respGuardada = _evalState.respuestas[pregunta.id];
+
+    pregunta.opciones.forEach(opcion => {
+        const label = document.createElement('label');
+        label.className = 'eval-option-label';
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = `pregunta_${pregunta.id}`;
+        radio.value = opcion.id;
+        radio.disabled = bloqueada;
+
+        if (respGuardada?.opcion_id === opcion.id) {
+            radio.checked = true;
+            label.classList.add('selected');
+        }
+
+        if (bloqueada && _evalState.comprobadas[pregunta.id] !== undefined) {
+            const esCorrecta = _evalState.comprobadas[pregunta.id];
+            if (respGuardada?.opcion_id === opcion.id) {
+                label.classList.add(esCorrecta ? 'correcta' : 'incorrecta');
+            }
+        }
+
+        radio.addEventListener('change', () => {
+            container.querySelectorAll('.eval-option-label').forEach(l => l.classList.remove('selected'));
+            label.classList.add('selected');
+            _evalState.respuestas[pregunta.id] = { opcion_id: opcion.id };
+        });
+
+        label.appendChild(radio);
+        label.appendChild(document.createTextNode(opcion.texto));
+        container.appendChild(label);
+    });
+}
+
+function _renderDragAndDrop(container, pregunta, bloqueada) {
+    const opciones = pregunta.opciones;
+    const respGuardada = _evalState.respuestas[pregunta.id]?.parejas || {};
+
+    const dragArea = document.createElement('div');
+    dragArea.className = 'eval-drag-area';
+
+    const colLeft = document.createElement('div');
+    colLeft.className = 'eval-drag-col';
+    colLeft.innerHTML = '<h4>Arrastra</h4>';
+
+    const colRight = document.createElement('div');
+    colRight.className = 'eval-drag-col';
+    colRight.innerHTML = '<h4>Suelta aquí</h4>';
+
+    opciones.forEach(opcion => {
+        const chip = document.createElement('div');
+        chip.className = 'eval-draggable';
+        chip.textContent = opcion.texto;
+        chip.draggable = !bloqueada;
+        chip.dataset.opcionId = opcion.id;
+
+        chip.addEventListener('dragstart', (e) => {
+            chip.classList.add('dragging');
+            e.dataTransfer.setData('opcionId', opcion.id);
+            e.dataTransfer.setData('opcionTexto', opcion.texto);
+        });
+        chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+        colLeft.appendChild(chip);
+
+        const zona = document.createElement('div');
+        zona.className = 'eval-drop-zone';
+
+        const labelTexto = document.createElement('span');
+        labelTexto.className = 'eval-drop-label';
+        labelTexto.textContent = opcion.pareja_arrastre || '?';
+
+        const blank = document.createElement('div');
+        blank.className = 'eval-blank';
+        blank.dataset.pairingTarget = opcion.pareja_arrastre || '';
+        blank.dataset.opcionId = opcion.id;
+
+        if (respGuardada[opcion.id]) {
+            blank.textContent = respGuardada[opcion.id].texto;
+            blank.classList.add('filled');
+        }
+
+        if (bloqueada && _evalState.comprobadas[pregunta.id] !== undefined) {
+            const esCorrecta = _evalState.comprobadas[pregunta.id];
+            blank.classList.add(esCorrecta ? 'correcta' : 'incorrecta');
+        }
+
+        if (!bloqueada) {
+            blank.addEventListener('dragover', (e) => { e.preventDefault(); blank.classList.add('drag-over'); });
+            blank.addEventListener('dragleave', () => blank.classList.remove('drag-over'));
+            blank.addEventListener('drop', (e) => {
+                e.preventDefault();
+                blank.classList.remove('drag-over');
+                const id = e.dataTransfer.getData('opcionId');
+                const txt = e.dataTransfer.getData('opcionTexto');
+                blank.textContent = txt;
+                blank.classList.add('filled');
+
+                if (!_evalState.respuestas[pregunta.id]) {
+                    _evalState.respuestas[pregunta.id] = { parejas: {} };
+                }
+                _evalState.respuestas[pregunta.id].parejas[opcion.id] = { id_opcion: id, texto: txt, pareja: opcion.pareja_arrastre };
+            });
+        }
+
+        zona.appendChild(labelTexto);
+        zona.appendChild(blank);
+        colRight.appendChild(zona);
+    });
+
+    dragArea.appendChild(colLeft);
+    dragArea.appendChild(colRight);
+    container.appendChild(dragArea);
+}
+
+async function _comprobarRespuesta() {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+    const pregunta = _evalState.preguntas[_evalState.indice];
+    const resp = _evalState.respuestas[pregunta.id];
+
+    if (!resp) {
+        mostrarMensajeBloqueado('Selecciona una respuesta antes de comprobar');
+        return;
+    }
+
+    let body = { pregunta_id: pregunta.id };
+    if (pregunta.tipo === 'seleccion_multiple' || pregunta.tipo === 'verdadero_falso') {
+        if (!resp.opcion_id) { mostrarMensajeBloqueado('Selecciona una opción'); return; }
+        body.opcion_id = resp.opcion_id;
+    } else if (pregunta.tipo === 'arrastrar_soltar') {
+        const parejas = resp.parejas;
+        if (!parejas || Object.keys(parejas).length === 0) {
+            mostrarMensajeBloqueado('Arrastra todos los elementos a su lugar');
+            return;
+        }
+        body.parejas = Object.values(parejas).map(p => ({ id_opcion: parseInt(p.id_opcion), pareja: p.pareja }));
+    }
+
+    try {
+        const response = await fetch(
+            `${apiUrl}/modulos/${_evalState.moduloId}/evaluacion/${_evalState.intentoId}/respuesta`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            }
+        );
+
+        const json = await response.json();
+        if (response.ok && json.success) {
+            const esCorrecta = json.data.es_correcta;
+            _evalState.comprobadas[pregunta.id] = esCorrecta;
+            _renderizarPreguntaModal(_evalState.indice);
+
+            const optionsEl = document.getElementById('eval-modal-options');
+            if (optionsEl) {
+                const fb = document.createElement('div');
+                fb.className = `eval-feedback ${esCorrecta ? 'correcto' : 'incorrecto'}`;
+                fb.textContent = esCorrecta ? '✅ ¡Correcto!' : '❌ Respuesta incorrecta';
+                optionsEl.appendChild(fb);
+            }
+        } else {
+            mostrarMensajeBloqueado(json.message || 'Error al comprobar respuesta');
+        }
+    } catch (e) {
+        console.error('Error comprobando respuesta:', e);
+        mostrarMensajeBloqueado('Error de conexión');
+    }
+}
+
+function _navigateModal(delta) {
+    const nuevo = _evalState.indice + delta;
+    if (nuevo < 0 || nuevo >= _evalState.preguntas.length) return;
+    _renderizarPreguntaModal(nuevo);
+}
+
+async function _finalizarEvaluacionModal() {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
+    clearInterval(_evalState.timerInterval);
+    mostrarSpinner(true);
+
+    try {
+        const response = await fetch(
+            `${apiUrl}/modulos/${_evalState.moduloId}/evaluacion/${_evalState.intentoId}/finalizar`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        const json = await response.json();
+
+        if (response.ok && json.success) {
+            _mostrarResultadoModal(json.data);
+        } else {
+            mostrarMensajeBloqueado(json.message || 'Error al finalizar la evaluación');
+            _cerrarModalEvaluacion();
+        }
+    } catch (e) {
+        console.error('Error finalizando evaluación:', e);
+        mostrarMensajeBloqueado('Error de conexión al finalizar');
+        _cerrarModalEvaluacion();
+    } finally {
+        mostrarSpinner(false);
+    }
+}
+
+function _mostrarResultadoModal(data) {
+    const overlay = document.getElementById('eval-modal-overlay');
+    const modal = overlay?.querySelector('.eval-modal');
+    if (!modal) return;
+
+    const aprobado = data.aprobado;
+    const porcentaje = Math.round(data.porcentaje_obtenido || 0);
+    const correctas = data.preguntas_correctas || 0;
+    const totales = data.preguntas_totales || _evalState.preguntas.length;
+    const mensaje = data.mensaje || (aprobado ? '¡Felicidades!' : 'Sigue intentando');
+
+    modal.innerHTML = `
+        <div class="eval-resultado-wrap">
+            <div class="eval-resultado-emoji">${aprobado ? '🎉' : '😞'}</div>
+            <h2 class="eval-resultado-titulo">${aprobado ? '¡Evaluación aprobada!' : 'No aprobaste esta vez'}</h2>
+            <div class="eval-resultado-porcentaje ${aprobado ? 'aprobado' : 'reprobado'}">${porcentaje}%</div>
+            <p class="eval-resultado-detalle">${correctas} de ${totales} preguntas correctas</p>
+            <p class="eval-resultado-detalle" style="margin-top:-10px;">${mensaje}</p>
+            <button class="eval-resultado-btn" id="eval-close-result-btn">Cerrar</button>
+        </div>
+    `;
+
+    document.getElementById('eval-close-result-btn')?.addEventListener('click', async () => {
+        _cerrarModalEvaluacion();
+        if (moduloActual?.id) {
+            await cargarProgresoModulo(moduloActual.id);
+            cargarEvaluacion(moduloActual.id);
+        }
+    });
+}

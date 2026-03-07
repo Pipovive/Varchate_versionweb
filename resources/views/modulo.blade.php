@@ -224,5 +224,42 @@
 
 @vite('resources/js/modulo.js')
 
+<!-- ===== MODAL DE EVALUACIÓN ===== -->
+<div id="eval-modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:3000; align-items:center; justify-content:center;">
+  <div class="eval-modal">
+
+    <!-- Header del modal -->
+    <div class="eval-modal-header">
+      <div class="eval-modal-info">
+        <div class="eval-progress-bar"><div class="eval-progress-fill" id="eval-modal-progress" style="width:0%"></div></div>
+        <h2 class="eval-modal-title" id="eval-modal-titulo" style="text-transform: uppercase;">Evaluación</h2>
+        <span id="eval-modal-counter">Pregunta 1 de ?</span>
+      </div>
+      <div class="eval-time-box">
+        <span><b>TIEMPO</b></span>
+        <span class="eval-timer" id="eval-modal-timer">00:00</span>
+      </div>
+      <button class="eval-cancel-btn" id="eval-modal-cancel-btn" title="Salir">✕</button>
+    </div>
+
+    <!-- Cuerpo -->
+    <div class="eval-modal-body">
+      <p class="eval-instrucciones" id="eval-modal-instrucciones"></p>
+      <p class="eval-question"   id="eval-modal-question">Cargando pregunta...</p>
+      <div class="eval-options"  id="eval-modal-options"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="eval-modal-footer">
+      <button class="eval-btn eval-btn-prev" id="eval-modal-prev-btn">← Anterior</button>
+      <button class="eval-btn eval-btn-check"  id="eval-modal-check-btn">Comprobar</button>
+      <button class="eval-btn eval-btn-next"   id="eval-modal-next-btn"   style="display:none">Siguiente →</button>
+      <button class="eval-btn eval-btn-finish" id="eval-modal-finish-btn" style="display:none">Finalizar evaluación</button>
+    </div>
+
+  </div>
+</div>
+<!-- ===== FIN MODAL DE EVALUACIÓN ===== -->
+
 </body>
 </html>

@@ -1279,10 +1279,16 @@ function renderizarPantallaCertificado(cert, moduloId, apiUrl) {
         return `
             <div class="eval-card" style="max-width:680px; margin:0 auto;">
                 <div class="eval-card-header" style="text-align:center; padding: 32px 24px 16px;">
-                    <span style="font-size: 80px; display: block; margin-bottom: 16px;">🎓</span>
-                    <h2 style="font-size: 1.6rem; color: var(--color-text, #1a1a2e); margin-bottom: 8px;">¡Certificado disponible!</h2>
-                    <p style="color: #666; font-size: 1rem;">Has completado <strong>${moduloTitulo}</strong> con un <strong>${porcentaje}%</strong>.</p>
-                    ${fecha ? `<p style="color:#888; font-size:0.9rem;">Emitido el ${fecha}</p>` : ''}
+                    <h2 style="font-size: 1.8rem; color: var(--color-text, #1a1a2e); margin-bottom: 8px;">¡Felicitaciones, lo lograste!</h2>
+                    <p style="color: #666; font-size: 1.2rem;">Has finalizado el módulo <strong>${moduloTitulo}</strong> con un <strong>${porcentaje}%</strong>.</p>
+                    <p style="color: #666; font-size: 1.2rem;">Este certificado valida que completaste el módulo y adquiriste los conocimiento básicos necesarios para continuar tu aprendizaje en programación</p>
+                    <p style="color: #666; font-size: 1.2rem;">¡Sigue avanzando y desbloquea nuevos retos!</p>
+                    ${fecha ? `<p style="color:#888; font-size:1rem;">Emitido el ${fecha}</p>` : ''}
+                    
+                    <!-- Imagen del gato centrada -->
+                    <div style="display: flex; justify-content: center; margin: 24px 0 8px;">
+                        <img src="${imagesBase}/gato-certificados.png" alt="Gato con certificado" style="width: 180px; height: auto; border-radius: 12px;">
+                    </div>
                 </div>
 
                 <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap; padding: 8px 24px 32px;">
@@ -1310,6 +1316,11 @@ function renderizarPantallaCertificado(cert, moduloId, apiUrl) {
                     <span style="font-size: 80px; display: block; margin-bottom: 16px;">📜</span>
                     <h2 style="font-size: 1.6rem; color: var(--color-text, #1a1a2e); margin-bottom: 8px;">Tu certificado te espera</h2>
                     <p style="color: #666; font-size: 1rem;">Has aprobado la evaluación de <strong>${moduloTitulo}</strong>. ¡Genera tu certificado ahora!</p>
+                    
+                    <!-- Imagen del gato centrada -->
+                    <div style="display: flex; justify-content: center; margin: 24px 0 8px;">
+                        <img src="${imagesBase}/gato-certificados.png" alt="Gato con certificado" style="width: 180px; height: auto; border-radius: 12px;">
+                    </div>
                 </div>
 
                 <div style="display:flex; justify-content:center; padding: 8px 24px 32px;">

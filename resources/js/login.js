@@ -1,3 +1,8 @@
+import { connectThemeToggle, initThemeProvider } from './theme';
+
+initThemeProvider();
+connectThemeToggle();
+
 document.addEventListener("DOMContentLoaded", () => {
   // =========================
   // Toggle mostrar contraseña

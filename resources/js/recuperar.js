@@ -1,3 +1,8 @@
+import { connectThemeToggle, initThemeProvider } from './theme';
+
+initThemeProvider();
+connectThemeToggle();
+
 // Configuración
 const API_URL = 'http://127.0.0.1:8001/api';
 

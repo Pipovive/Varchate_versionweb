@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700;800&display=swap');
+@import './theme.css';
 
 * {
     box-sizing: border-box;
@@ -447,44 +448,57 @@ input:focus {
 }
 
 /* --- Modo oscuro --- */
-body.dark-mode {
-    background: #1a1a1a;
-    color: #e0e0e0;
+.dark-mode body {
+    background: #2C2C3E;
+    color: #CCCCCC;
 }
 
-body.dark-mode .terminos-container {
-    background: #2d2d2d;
-    border-color: #404040;
+.dark-mode .terminos-container {
+    background: #3A3A4F;
+    border-color: #4A4A60;
 }
 
-body.dark-mode .terminos-container h1 {
-    color: #e0e0e0;
+.dark-mode .terminos-container h1 {
+    color: #FFFFFF;
 }
 
-body.dark-mode .termino-seccion p,
-body.dark-mode .termino-seccion ul li {
-    color: #b0b0b0;
+.dark-mode .termino-seccion h2 {
+    color: #FFFFFF;
+    border-left-color: #4A4A60;
 }
 
-body.dark-mode .btn-cancelar {
-    background: #3d3d3d;
-    color: #e0e0e0;
-    border-color: #505050;
+.dark-mode .termino-seccion p,
+.dark-mode .termino-seccion ul li {
+    color: #CCCCCC;
 }
 
-body.dark-mode .btn-cancelar:hover {
-    background: #4d4d4d;
+.dark-mode .termino-seccion ul li::before {
+    color: #FFFFFF;
 }
 
-body.dark-mode .fecha-actualizacion {
-    border-bottom-color: #404040;
+.dark-mode .termino-seccion strong {
+    color: #FFFFFF;
 }
 
-body.dark-mode .footer-simple {
-    background: #2d2d2d;
-    border-top-color: #404040;
+.dark-mode .btn-cancelar {
+    background: #3A3A4F;
+    color: #CCCCCC;
+    border-color: #4A4A60;
 }
 
-body.dark-mode .footer-simple p {
-    color: #b0b0b0;
+.dark-mode .btn-cancelar:hover {
+    background: #2C2C3E;
+}
+
+.dark-mode .fecha-actualizacion {
+    border-bottom-color: #4A4A60;
+    color: #AAAAAA;
+}
+
+.dark-mode .footer-simple {
+    border-top-color: #4A4A60;
+}
+
+.dark-mode .footer-simple p {
+    color: #CCCCCC;
 }

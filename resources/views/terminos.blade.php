@@ -147,5 +147,6 @@
         <p>&copy; {{ date('Y') }} VARCHATE. Todos los derechos reservados.</p>
     </footer>
 
+    @vite('resources/js/terminos.js')
 </body>
 </html>

@@ -1,3 +1,8 @@
+import { connectThemeToggle, initThemeProvider } from './theme';
+
+initThemeProvider();
+connectThemeToggle();
+
 // ===============================
 //          MENU HAMBURGUESA
 // ===============================
@@ -260,6 +265,5 @@ function ejecutarPHP() {
   preview.innerHTML =
     salida || "<span style='color:red'>Código PHP no soportado</span>";
 }
-
 
 

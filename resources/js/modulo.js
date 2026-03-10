@@ -1,3 +1,8 @@
+import { connectThemeToggle, initThemeProvider } from './theme';
+
+initThemeProvider();
+connectThemeToggle();
+
 // ===============================
 // VERIFICACIÓN DE AUTENTICACIÓN
 // ===============================

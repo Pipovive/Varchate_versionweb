@@ -1,4 +1,9 @@
+import { connectThemeToggle, initThemeProvider } from './theme';
 
+initThemeProvider();
+connectThemeToggle();
+
+ 
 // Helper: asigna src y revela la imagen de perfil con fade-in
 function showProfilePic(el, src) {
   if (!el || !src) return;
@@ -102,7 +107,6 @@ function trapFocus(element) {
 window.addEventListener("DOMContentLoaded", () => {
   cargarDatosUsuario();
   initPasswordToggles();
-  initDarkMode();
   cargarProgresoModulos();
 });
 
@@ -183,40 +187,6 @@ async function cargarProgresoModulos() {
   }
 }
 
-
-// Dark mode: toggle class on <html> and persist preference
-function initDarkMode() {
-  const btn = document.getElementById('btn-darkmode');
-  if (!btn) return;
-  const img = btn.querySelector('img');
-
-  const apply = (enabled) => {
-    const root = document.documentElement;
-    if (enabled) {
-      root.classList.add('dark-mode');
-      if (img) img.classList.add('dark-icon');
-    } else {
-      root.classList.remove('dark-mode');
-      if (img) img.classList.remove('dark-icon');
-    }
-  };
-
-  // Initialize from localStorage or system preference
-  let stored = null;
-  try { stored = localStorage.getItem('dark_mode'); } catch (e) { stored = null; }
-  if (stored === null) {
-    const prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    apply(prefers);
-  } else {
-    apply(stored === '1');
-  }
-
-  btn.addEventListener('click', () => {
-    const enabled = document.documentElement.classList.toggle('dark-mode');
-    if (img) img.classList.toggle('dark-icon');
-    try { localStorage.setItem('dark_mode', enabled ? '1' : '0'); } catch (e) { }
-  });
-}
 
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';

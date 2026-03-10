@@ -7,7 +7,18 @@
   <title id="pageTitle">Varchate</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <!-- Inicializar tema oscuro lo antes posible para evitar parpadeo -->
-  <script>try{var dm=localStorage.getItem('dark_mode'); if(dm==='1'){document.documentElement.classList.add('dark-mode');}}catch(e){};</script>
+  <script>
+    try {
+      var tm = localStorage.getItem('theme') || (localStorage.getItem('dark_mode') === '1' ? 'dark' : null);
+      if (tm === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+        if (document.body) document.body.classList.add('dark-mode');
+        else document.addEventListener('DOMContentLoaded', function () {
+          document.body.classList.add('dark-mode');
+        }, { once: true });
+      }
+    } catch (e) { }
+  </script>
   @vite('resources/css/modulo.css')
 </head>
 <body>

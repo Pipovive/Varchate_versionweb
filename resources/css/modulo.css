@@ -1,4 +1,5 @@
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap');
+  @import './theme.css';
 
   :focus {
     outline: none;
@@ -679,6 +680,71 @@
   /* =========================
    📱 Versión móvil (max-width: 460px)
 ========================= */
+  /* --- Modo oscuro --- */
+  .dark-mode body {
+    background: #2C2C3E;
+    color: #CCCCCC;
+  }
+
+  .dark-mode main,
+  .dark-mode .container,
+  .dark-mode .main-layout {
+    background: #2C2C3E;
+  }
+
+  .dark-mode .progress-container,
+  .dark-mode .progress-container-mobile {
+    background: #3A3A4F;
+    border-color: #4A4A60;
+    color: #CCCCCC;
+  }
+
+  .dark-mode .progress-text,
+  .dark-mode .progress-percent {
+    color: #FFFFFF;
+  }
+
+  .dark-mode .progress-bar {
+    background: #2C2C3E;
+  }
+
+  .dark-mode .sidebar {
+    background: #2C2C3E;
+    border-color: #4A4A60;
+  }
+
+  .dark-mode .sidebar button {
+    background: #3A3A4F;
+    color: #CCCCCC;
+    border: 1px solid #4A4A60;
+  }
+
+  .dark-mode .sidebar button.locked {
+    color: #AAAAAA;
+  }
+
+  .dark-mode .content,
+  .dark-mode .lesson {
+    background: #3A3A4F;
+    color: #CCCCCC;
+    border-color: #4A4A60;
+  }
+
+  .dark-mode .intro-header,
+  .dark-mode h3 {
+    color: #FFFFFF;
+  }
+
+  .dark-mode .lesson p {
+    color: #CCCCCC;
+  }
+
+  .dark-mode .btn-regresar {
+    background: #3A3A4F;
+    color: #CCCCCC;
+    border-color: #4A4A60;
+  }
+
   @media (max-width: 460px) {
 
     .header,

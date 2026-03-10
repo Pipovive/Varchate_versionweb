@@ -1,0 +1,112 @@
+/* Paleta de modo oscuro compartida */
+:root {
+  --vc-dark-bg: #2C2C3E;
+  --vc-dark-card: #3A3A4F;
+  --vc-dark-sidebar: #2C2C3E;
+  --vc-dark-text-primary: #FFFFFF;
+  --vc-dark-text: #CCCCCC;
+  --vc-dark-text-muted: #AAAAAA;
+  --vc-dark-border: #4A4A60;
+}
+
+.dark-mode body {
+  background: var(--vc-dark-bg);
+  color: var(--vc-dark-text);
+}
+
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode h5,
+.dark-mode h6 {
+  color: var(--vc-dark-text-primary);
+}
+
+.dark-mode p,
+.dark-mode label,
+.dark-mode span,
+.dark-mode li,
+.dark-mode a,
+.dark-mode small {
+  color: var(--vc-dark-text);
+}
+
+.dark-mode .text-muted,
+.dark-mode .muted,
+.dark-mode .ayuda,
+.dark-mode .helper,
+.dark-mode .helper-text {
+  color: var(--vc-dark-text-muted);
+}
+
+.dark-mode .container,
+.dark-mode main,
+.dark-mode main.container,
+.dark-mode .content,
+.dark-mode .terminos-container,
+.dark-mode .perfil-card,
+.dark-mode .card,
+.dark-mode .login-box,
+.dark-mode .register-card,
+.dark-mode .password-card,
+.dark-mode .progress-container,
+.dark-mode .modal-content,
+.dark-mode .modal-box {
+  background: var(--vc-dark-card);
+  color: var(--vc-dark-text);
+  border-color: var(--vc-dark-border);
+}
+
+.dark-mode .sidebar,
+.dark-mode aside.sidebar,
+.dark-mode .menu-lateral {
+  background: var(--vc-dark-sidebar);
+  border-color: var(--vc-dark-border);
+}
+
+.dark-mode .progress-container,
+.dark-mode .terminos-container,
+.dark-mode .perfil-card,
+.dark-mode .card,
+.dark-mode .login-box,
+.dark-mode .register-card,
+.dark-mode .password-card,
+.dark-mode .barra,
+.dark-mode .barra-fill,
+.dark-mode .progress-bar {
+  border-color: var(--vc-dark-border);
+}
+
+.dark-mode input,
+.dark-mode textarea,
+.dark-mode select {
+  background: var(--vc-dark-bg);
+  color: var(--vc-dark-text);
+  border-color: var(--vc-dark-border);
+}
+
+.dark-mode .btn-regresar,
+.dark-mode .volver-header a {
+  background: var(--vc-dark-card);
+  color: var(--vc-dark-text);
+  border-color: var(--vc-dark-border);
+}
+
+.dark-mode .btn-cancel,
+.dark-mode .cancelar,
+.dark-mode .btn-cancelar {
+  background: var(--vc-dark-card);
+  color: var(--vc-dark-text);
+  border-color: var(--vc-dark-border);
+}
+
+.dark-mode .footer-simple,
+.dark-mode .footer-container,
+.dark-mode .custom-footer {
+  border-color: var(--vc-dark-border);
+}
+
+.dark-mode .icono-tema img {
+  filter: invert(1) hue-rotate(180deg) saturate(0.9);
+}

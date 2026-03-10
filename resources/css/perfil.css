@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap');
+@import './theme.css';
  
 /* Quitar el focus general */
 :focus {
@@ -419,38 +420,50 @@ body {
      transform: scale(1);
      display: flex;
  }
-/* Dark mode overrides */
-html.dark-mode {
-  background: #0b1220;
-  color: #e6eef8;
+.dark-mode {
+  background: #2C2C3E;
+  color: #CCCCCC;
 }
-html.dark-mode body {
-  background: #0b1220;
-  color: #e6eef8;
+
+.dark-mode body {
+  background: #2C2C3E;
+  color: #CCCCCC;
 }
-html.dark-mode .header {
-  background: #061022;
+
+.dark-mode .perfil-card,
+.dark-mode .card {
+  background: #3A3A4F;
+  border-color: #4A4A60;
+  color: #CCCCCC;
 }
-html.dark-mode .perfil-card {
-  background: rgba(255,255,255,0.03);
+
+.dark-mode .perfil-card h2,
+.dark-mode .card h3,
+.dark-mode h2 {
+  color: #FFFFFF;
 }
-html.dark-mode .card {
-  background: rgba(255,255,255,0.03);
+
+.dark-mode .campo input {
+  background: #2C2C3E;
+  color: #CCCCCC;
+  border-color: #4A4A60;
 }
-html.dark-mode .campo input {
-  background: #0f1724;
-  color: #e6eef8;
-  border-color: #2a3340;
+
+.dark-mode .btn-regresar {
+  background: #3A3A4F;
+  color: #CCCCCC;
+  border-color: #4A4A60;
 }
-html.dark-mode .btn-regresar {
-  background: #1f2937;
-  color: #fff;
+
+.dark-mode label,
+.dark-mode .progress-percent,
+.dark-mode .progreso-cargando {
+  color: #CCCCCC;
 }
-html.dark-mode .botones button.guardar {
-  background: #2563eb;
-}
-html.dark-mode .botones button.cancelar {
-  background: #b91c1c;
+
+.dark-mode small,
+.dark-mode .ayuda {
+  color: #AAAAAA;
 }
 /* Icono del toggle: invertir colores cuando el tema oscuro está activo */
 .icono-tema img.dark-icon {

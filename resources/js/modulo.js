@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const token = localStorage.getItem('auth_token');
 
     if (!token) {
-        redirigirALogin();
+        await redirigirALogin();
         return;
     }
 
@@ -33,11 +33,29 @@ document.addEventListener('DOMContentLoaded', async function () {
 });
 
 // Función auxiliar para redirigir a login de manera consistente
-function redirigirALogin(params = '') {
+// Siempre limpia localStorage y la sesión Laravel antes de redirigir
+async function redirigirALogin(params = '') {
+    // Limpiar localStorage
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('user_nombre');
+    localStorage.removeItem('user_apellido');
+    localStorage.removeItem('user_email');
+
+    // Limpiar sesión de Laravel para evitar el loop de redirect
+    try {
+        const mainEl = document.querySelector('main[data-clear-session-url]');
+        const clearSessionUrl = mainEl?.dataset.clearSessionUrl || '/api/clear-session-token';
+        await fetch(clearSessionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (_) { /* ignorar errores de red */ }
+
     // Construir URL absoluta sin barras dobles
     const baseUrl = window.location.origin;
-    const loginUrl = params ? `${baseUrl}/login${params}` : `${baseUrl}/login`;
-    window.location.href = loginUrl;
+    const loginPath = params ? `/login${params}` : '/login';
+    window.location.href = baseUrl + loginPath;
 }
 
 function obtenerSlugDeURL() {
@@ -88,25 +106,19 @@ async function verificarTokenEnSegundoPlano(token) {
                     if (userData.id) localStorage.setItem(`user_avatar_for_${userData.id}`, avatarUrl);
 
                     // Actualizar el DOM directamente
-                    const profilePic = document.getElementById('profile-pic');
-                    const profilePicMobile = document.getElementById('profile-pic-mobile');
-                    if (profilePic) profilePic.src = avatarUrl;
-                    if (profilePicMobile) profilePicMobile.src = avatarUrl;
+                    showProfilePic(document.getElementById('profile-pic'), avatarUrl);
+                    showProfilePic(document.getElementById('profile-pic-mobile'), avatarUrl);
                 }
 
                 cargarDatosUsuario();
             }
         } else {
-            // Token inválido, limpiar y redirigir
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('user');
-            localStorage.removeItem('user_nombre');
-            localStorage.removeItem('user_apellido');
-            localStorage.removeItem('user_email');
-            redirigirALogin('?expired=true');
+            // Token inválido — redirigir a login (redirigirALogin limpia sesión automáticamente)
+            await redirigirALogin('?expired=true');
         }
     } catch (error) {
-        console.error('Error verificando token:', error);
+        // Error de red: NO redirigir, solo loguear. La API puede estar temporalmente caída.
+        console.warn('No se pudo verificar el token (posible error de red):', error);
     }
 }
 
@@ -194,11 +206,20 @@ function cargarDatosUsuario() {
             return `/avatars/${val}`;
         };
         const avatarUrl = buildUrl(avatarToShow);
-        const profilePic = document.getElementById('profile-pic');
-        const profilePicMobile = document.getElementById('profile-pic-mobile');
-        if (profilePic && avatarUrl) profilePic.src = avatarUrl;
-        if (profilePicMobile && avatarUrl) profilePicMobile.src = avatarUrl;
+        showProfilePic(document.getElementById('profile-pic'), avatarUrl);
+        showProfilePic(document.getElementById('profile-pic-mobile'), avatarUrl);
     }
+}
+
+/**
+ * Asigna src a una imagen de perfil y la revela con fade-in.
+ * La imagen empieza oculta (opacity:0) en el HTML.
+ */
+function showProfilePic(el, src) {
+    if (!el || !src) return;
+    el.onload = () => { el.style.opacity = '1'; };
+    el.onerror = () => { el.style.opacity = '1'; }; // mostrar aunque falle
+    el.src = src;
 }
 
 // ===============================
@@ -209,6 +230,7 @@ let modulosGlobal = [];
 let moduloActual = null;
 let leccionesModulo = [];
 let progresoModulo = null;
+let evaluacionData = null; // descripción y datos de la evaluación precargados
 let leccionActualIndex = -1; // -1 = Introducción, 0+ = Lecciones
 
 async function cargarDatosModulo(moduleSlug) {
@@ -258,11 +280,14 @@ async function cargarDatosModulo(moduleSlug) {
             // Actualizar la introducción con la descripción larga
             actualizarIntroduccionModulo();
 
-            // 3. Cargar lecciones del módulo
-            await cargarLeccionesModulo(moduloActual.id, moduleSlug);
-
-            // 4. Cargar progreso del módulo (si existe)
+            // 3. Cargar PRIMERO el progreso (para que las lecciones se rendericen con el estado correcto)
             await cargarProgresoModulo(moduloActual.id);
+
+            // 4. Precargar descripción de la evaluación (en paralelo con lecciones)
+            const [_, leccionesResult] = await Promise.all([
+                precargarEvaluacion(moduloActual.id),
+                cargarLeccionesModulo(moduloActual.id, moduleSlug)
+            ]);
         } else {
             console.error('Error cargando módulo:', moduloResponse.status);
             mostrarBienvenidaModulos();
@@ -441,6 +466,26 @@ async function cargarProgresoModulo(moduloId) {
     }
 }
 
+async function precargarEvaluacion(moduloId) {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+    try {
+        const response = await fetch(`${apiUrl}/modulos/${moduloId}/evaluacion`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
+        });
+        if (response.ok) {
+            const json = await response.json();
+            evaluacionData = json?.data?.evaluacion || null;
+            console.log('📋 Evaluación precargada:', evaluacionData);
+        }
+    } catch (error) {
+        console.warn('No se pudo precargar la evaluación:', error);
+    }
+}
+
 // ===============================
 // RENDERIZADO DE COMPONENTES
 // ===============================
@@ -551,10 +596,23 @@ function renderizarLecciones(lecciones) {
     // Verificar si todas las lecciones están completadas para desbloquear evaluación
     const todasLeccionesCompletadas = leccionesCompletadas >= leccionesOrdenadas.length;
     const evaluacionDesbloqueada = todasLeccionesCompletadas || progresoModulo?.evaluacion_aprobada === true;
+    const evaluacionAprobadaSidebar = progresoModulo?.evaluacion_aprobada === true;
+    const claseEvaluacion = evaluacionDesbloqueada
+        ? (evaluacionAprobadaSidebar ? 'vista' : '')
+        : 'locked';
 
     sidebarHTML += `
-        <button class="${evaluacionDesbloqueada ? '' : 'locked'}" data-tipo="evaluacion" data-evaluacion-id="${moduloActual?.id || 1}">
-            EVALUACIÓN ${evaluacionDesbloqueada ? '' : `<img src="${document.querySelector('main.container')?.dataset.lockUrl || '/images/Lock.svg'}" alt="Bloqueado" class="icon-lock">`}
+        <button class="${claseEvaluacion}" data-tipo="evaluacion" data-evaluacion-id="${moduloActual?.id || 1}">
+            EVALUACIÓN ${!evaluacionDesbloqueada ? `<img src="${document.querySelector('main.container')?.dataset.lockUrl || '/images/Lock.svg'}" alt="Bloqueado" class="icon-lock">` : ''}
+        </button>
+    `;
+
+    // Botón CERTIFICADOS: sólo disponible si la evaluación fue aprobada
+    const certificadoDesbloqueado = evaluacionAprobadaSidebar;
+    const claseCertificado = certificadoDesbloqueado ? '' : 'locked';
+    sidebarHTML += `
+        <button class="${claseCertificado}" data-tipo="certificado" data-modulo-id="${moduloActual?.id || 1}">
+            CERTIFICADOS ${!certificadoDesbloqueado ? `<img src="${document.querySelector('main.container')?.dataset.lockUrl || '/images/Lock.svg'}" alt="Bloqueado" class="icon-lock">` : ''}
         </button>
     `;
 
@@ -594,6 +652,9 @@ function renderizarLecciones(lecciones) {
 
     // Agregar evaluación (SOLO VISUAL)
     const evaluacionAprobada = progresoModulo?.evaluacion_aprobada || false;
+    const descEvaluacion = evaluacionData?.descripcion
+        ? evaluacionData.descripcion.substring(0, 120) + (evaluacionData.descripcion.length > 120 ? '...' : '')
+        : 'Pon a prueba tus conocimientos del módulo';
 
     lessonsHTML += `
             <div class="lesson evaluation ${evaluacionAprobada ? 'completed' : ''}" 
@@ -601,10 +662,21 @@ function renderizarLecciones(lecciones) {
                 data-evaluacion-id="${moduloActual?.id || 1}">
                 <i class="fa-regular fa-file-lines"></i>
                 <div>
-                    <strong>Evaluación del Módulo</strong>
-                    <p>${moduloActual?.descripcion_larga ?
-            moduloActual.descripcion_larga.substring(0, 100) + '...' :
-            'Pon a prueba tus conocimientos del módulo'}</p>
+                    <strong>${evaluacionData?.titulo || 'Evaluación del Módulo'}</strong>
+                    <p>${descEvaluacion}</p>
+                </div>
+            </div>
+        `;
+
+    // Agregar certificado (SOLO VISUAL)
+    lessonsHTML += `
+            <div class="lesson certificado ${evaluacionAprobada ? 'completed' : 'locked-lesson'}" 
+                data-tipo="certificado" 
+                data-modulo-id="${moduloActual?.id || 1}">
+                <i class="fa-solid fa-certificate"></i>
+                <div>
+                    <strong>Certificado del Módulo</strong>
+                    <p>${evaluacionAprobada ? 'Descarga tu certificado de finalización' : 'Aprueba la evaluación para obtener tu certificado'}</p>
                 </div>
             </div>
         `;
@@ -634,6 +706,8 @@ function renderizarLecciones(lecciones) {
 
                 if (tipo === 'evaluacion') {
                     mostrarMensajeBloqueado('Completa todas las lecciones para acceder a la evaluación');
+                } else if (tipo === 'certificado') {
+                    mostrarMensajeBloqueado('Aprueba la evaluación para obtener tu certificado');
                 } else {
                     const leccionesCompletadas = progresoModulo?.lecciones_vistas || 0;
                     if (leccionesCompletadas === 0 && leccionIndex > 0) {
@@ -657,6 +731,9 @@ function renderizarLecciones(lecciones) {
                 console.log('Cargando evaluación');
                 leccionActualIndex = window.leccionesOrdenadas?.length ?? 0; // Sincronizar estado
                 cargarEvaluacion(btn.dataset.evaluacionId);
+            } else if (tipo === 'certificado') {
+                console.log('Mostrando certificado');
+                cargarCertificado(btn.dataset.moduloId);
             } else if (leccionSlug && moduloActual) {
                 console.log('Cargando lección:', leccionSlug);
                 leccionActualIndex = leccionIndex; // Sincronizar estado
@@ -688,7 +765,7 @@ function mostrarMensajeBloqueado(mensaje = 'Completa el contenido anterior para 
         text-align: center;
         min-width: 300px;
     `;
-    mensajeEl.innerHTML = `🔒 ${mensaje}`;
+    mensajeEl.innerHTML = `${mensaje}`;
 
     document.body.appendChild(mensajeEl);
 
@@ -721,7 +798,7 @@ function mostrarMensajeExito(mensaje) {
         text-align: center;
         min-width: 300px;
     `;
-    mensajeEl.innerHTML = `✅ ${mensaje}`;
+    mensajeEl.innerHTML = `${mensaje}`;
 
     document.body.appendChild(mensajeEl);
 
@@ -768,9 +845,47 @@ if (!document.getElementById('animation-styles')) {
             background-color: #FFFFFF;
             color: #616461;
         }
+
+        /* Botón de EVALUACIÓN (estilo base - igual que intro) */
+        .sidebar button[data-tipo="evaluacion"] {
+            background-color: #FFFFFF;
+            color: #616461;
+        }
+
+        /* Botón de EVALUACIÓN BLOQUEADO - restaurar gris */
+        .sidebar button[data-tipo="evaluacion"].locked {
+            background-color: #8C8C8C72 !important;
+            color: #616461 !important;
+            cursor: not-allowed !important;
+        }
+
+        /* Botón de CERTIFICADOS (estilo base) */
+        .sidebar button[data-tipo="certificado"] {
+            background-color: #FFFFFF;
+            color: #616461;
+        }
+
+        /* Botón de CERTIFICADOS BLOQUEADO - restaurar gris */
+        .sidebar button[data-tipo="certificado"].locked {
+            background-color: #8C8C8C72 !important;
+            color: #616461 !important;
+            cursor: not-allowed !important;
+        }
         
         /* Botón de INTRODUCCIÓN ACTIVO */
         .sidebar button[data-tipo="intro"].active {
+            background-color: #0099FF !important;
+            color: #FFFFFF !important;
+        }
+
+        /* Botón de EVALUACIÓN ACTIVO */
+        .sidebar button[data-tipo="evaluacion"].active {
+            background-color: #0099FF !important;
+            color: #FFFFFF !important;
+        }
+
+        /* Botón de CERTIFICADOS ACTIVO */
+        .sidebar button[data-tipo="certificado"].active {
             background-color: #0099FF !important;
             color: #FFFFFF !important;
         }
@@ -797,9 +912,19 @@ if (!document.getElementById('animation-styles')) {
             border-color: #4caf50;
         }
       
-        .lessons .lesson.evaluation.locked {
+        .lessons .lesson.evaluation.locked,
+        .lessons .lesson.certificado.locked-lesson {
             opacity: 0.6;
             background-color: #f5f5f5;
+        }
+
+        /* Card de certificado desbloqueado */
+        .lessons .lesson.certificado.completed {
+            background-color: #fffbea;
+            border-color: #C9A227;
+        }
+        .lessons .lesson.certificado .fa-certificate {
+            color: #C9A227;
         }
     `;
     document.head.appendChild(styleElement);
@@ -925,11 +1050,18 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
             const introduccionContent = document.getElementById('introduccionContent');
             const leccionContent = document.getElementById('leccionContent');
 
+            // Mostrar el botón "Siguiente" en lecciones normales
+            const btnNextLeccion = document.getElementById('btnNext');
+            if (btnNextLeccion) btnNextLeccion.style.display = '';
+
             if (introduccionContent) introduccionContent.style.display = 'none';
             if (leccionContent) {
                 leccionContent.style.display = 'block';
                 leccionContent.innerHTML = contenidoLimpio;
             }
+
+            // Subir al tope automáticamente al cargar nueva lección
+            window.scrollTo({ top: 0, behavior: 'smooth' });
 
             // Encontrar el índice de la lección actual
             if (window.leccionesOrdenadas) {
@@ -951,13 +1083,11 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
     }
 }
 
-async function marcarLeccionVista(moduloId, leccionId, skipRender = false) {
+async function marcarLeccionVista(moduloId, leccionId, skipRender = false, mostrarMensaje = true) {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
     const token = localStorage.getItem('auth_token');
 
     try {
-        console.log('📝 Marcando lección como vista:', { moduloId, leccionId });
-
         const response = await fetch(`${apiUrl}/modulos/${moduloId}/lecciones/${leccionId}/marcar-vista`, {
             method: 'POST',
             headers: {
@@ -969,18 +1099,19 @@ async function marcarLeccionVista(moduloId, leccionId, skipRender = false) {
 
         if (response.ok) {
             const data = await response.json();
-            console.log('✅ Respuesta de marcar vista:', data);
 
             // Recargar progreso
             await cargarProgresoModulo(moduloId);
-            console.log('🔄 Progreso actualizado:', progresoModulo);
 
             // Solo re-renderizar el sidebar si no se pide omitir
             if (!skipRender && window.leccionesOrdenadas) {
                 renderizarLecciones(window.leccionesOrdenadas);
             }
 
-            mostrarMensajeExito('¡Lección completada!');
+            // Solo mostrar mensaje si es la primera vez que se completa
+            if (mostrarMensaje) {
+                mostrarMensajeExito('¡Lección completada!');
+            }
         } else {
             console.error('❌ Error marcando lección:', await response.text());
         }
@@ -997,7 +1128,12 @@ async function cargarEvaluacion(evaluacionId) {
     mostrarSpinner(true);
 
     try {
-        console.log('📝 Cargando evaluación para módulo:', moduloActual.id);
+        console.log('📝 Cargando evaluación para módulo:', moduloActual?.id);
+
+        if (!moduloActual?.id) {
+            console.error('No hay módulo actual');
+            return;
+        }
 
         const response = await fetch(`${apiUrl}/modulos/${moduloActual.id}/evaluacion`, {
             headers: {
@@ -1007,17 +1143,29 @@ async function cargarEvaluacion(evaluacionId) {
         });
 
         if (response.ok) {
-            const evaluacion = await response.json();
-            console.log('✅ Evaluación cargada:', evaluacion);
+            const json = await response.json();
+            console.log('✅ Evaluación cargada:', json);
 
-            // Mostrar interfaz de evaluación
             const introduccionContent = document.getElementById('introduccionContent');
             const leccionContent = document.getElementById('leccionContent');
+            // Ocultar el botón "Siguiente" en la sección de evaluación
+            const btnNext = document.getElementById('btnNext');
+            if (btnNext) btnNext.style.display = 'none';
 
             if (introduccionContent) introduccionContent.style.display = 'none';
             if (leccionContent) {
                 leccionContent.style.display = 'block';
-                leccionContent.innerHTML = renderizarEvaluacion(evaluacion);
+                leccionContent.innerHTML = renderizarEvaluacion(json);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                // Enlazar botón de iniciar evaluación
+                const btnIniciar = leccionContent.querySelector('#btn-iniciar-evaluacion');
+                if (btnIniciar && !btnIniciar.disabled) {
+                    btnIniciar.addEventListener('click', () => {
+                        const evalId = json.data?.evaluacion?.id;
+                        iniciarEvaluacion(evalId);
+                    });
+                }
             }
         } else {
             console.error('Error cargando evaluación:', response.status);
@@ -1032,64 +1180,455 @@ async function cargarEvaluacion(evaluacionId) {
     }
 }
 
-function renderizarEvaluacion(evaluacion) {
-    const evaluacionAprobada = progresoModulo?.evaluacion_aprobada || false;
+// ===============================
+// CERTIFICADOS
+// ===============================
+
+async function cargarCertificado(moduloId) {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
+    mostrarSpinner(true);
+
+    try {
+        const introduccionContent = document.getElementById('introduccionContent');
+        const leccionContent = document.getElementById('leccionContent');
+        const btnNext = document.getElementById('btnNext');
+        if (btnNext) btnNext.style.display = 'none';
+        if (introduccionContent) introduccionContent.style.display = 'none';
+
+        // Obtener todas las certificaciones del usuario
+        const response = await fetch(`${apiUrl}/certificaciones`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error consultando certificaciones');
+        }
+
+        const json = await response.json();
+        const certificaciones = json?.data?.certificaciones || [];
+
+        // Buscar certificado del módulo actual
+        const cert = certificaciones.find(c => {
+            // Comparar por slug del módulo si está disponible
+            return moduloActual && (
+                c.modulo?.slug === moduloActual.slug ||
+                c.modulo?.titulo === moduloActual.titulo
+            );
+        });
+
+        if (leccionContent) {
+            leccionContent.style.display = 'block';
+            leccionContent.innerHTML = renderizarPantallaCertificado(cert, moduloId, apiUrl);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Enlazar botón de generar certificado si no existe
+            const btnGenerar = leccionContent.querySelector('#btn-generar-certificado');
+            if (btnGenerar) {
+                btnGenerar.addEventListener('click', async () => {
+                    btnGenerar.disabled = true;
+                    btnGenerar.textContent = 'Generando...';
+                    await generarCertificado(moduloId);
+                });
+            }
+
+            // Enlazar botón de descargar
+            const btnDescargar = leccionContent.querySelector('#btn-descargar-certificado');
+            if (btnDescargar && cert) {
+                // IMPORTANTE: Remover cualquier onclick anterior
+                btnDescargar.removeAttribute('onclick');
+                
+                // Agregar nuevo event listener que usa nuestra función
+                btnDescargar.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    descargarCertificado(cert.codigo_certificado);
+                });
+            }
+
+        // Enlazar botón de ver
+        const btnVer = leccionContent.querySelector('#btn-ver-certificado');
+        if (btnVer && cert) {
+            btnVer.addEventListener('click', (e) => {
+                e.preventDefault();
+                verCertificado(cert.codigo_certificado);
+            });
+        }
+        }
+
+    } catch (error) {
+        console.error('Error cargando certificado:', error);
+        mostrarMensajeBloqueado('Error al cargar el certificado. Intenta de nuevo.');
+    } finally {
+        mostrarSpinner(false);
+    }
+}
+
+function renderizarPantallaCertificado(cert, moduloId, apiUrl) {
+    const imagesBase = document.querySelector('main.container')?.dataset.imagesUrl || '/images';
+    const moduloTitulo = moduloActual?.titulo || 'este módulo';
+
+    if (cert) {
+        // Ya tiene certificado
+        const fecha = cert.resultados?.fecha_emision || '';
+        const porcentaje = cert.resultados?.porcentaje_obtenido || 100;
+
+        return `
+            <div class="eval-card" style="max-width:680px; margin:0 auto;">
+                <div class="eval-card-header" style="text-align:center; padding: 32px 24px 16px;">
+                    <span style="font-size: 80px; display: block; margin-bottom: 16px;">🎓</span>
+                    <h2 style="font-size: 1.6rem; color: var(--color-text, #1a1a2e); margin-bottom: 8px;">¡Certificado disponible!</h2>
+                    <p style="color: #666; font-size: 1rem;">Has completado <strong>${moduloTitulo}</strong> con un <strong>${porcentaje}%</strong>.</p>
+                    ${fecha ? `<p style="color:#888; font-size:0.9rem;">Emitido el ${fecha}</p>` : ''}
+                </div>
+
+                <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap; padding: 8px 24px 32px;">
+                    <button id="btn-ver-certificado"
+                        style="display:flex; align-items:center; gap:10px; padding:14px 28px; background:#0099FF; color:#fff; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer; transition:background 0.2s;">
+                        <i class="fa-regular fa-eye"></i> Ver certificado
+                    </button>
+                    <button id="btn-descargar-certificado"
+                        style="display:flex; align-items:center; gap:10px; padding:14px 28px; background:#C9A227; color:#fff; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer; transition:background 0.2s;">
+                        <i class="fa-solid fa-download"></i> Descargar PNG
+                    </button>
+                </div>
+
+                <div style="background:#f0fff0; border:1px solid #4caf50; border-radius:10px; padding:14px 20px; margin:0 24px 24px; display:flex; align-items:center; gap:12px;">
+                    <i class="fa-solid fa-circle-check" style="color:#4caf50; font-size:1.4rem;"></i>
+                    <span style="color:#2e7d32; font-size:0.95rem;">¡Módulo completado! Tu certificado ha sido emitido con código <strong>${cert.codigo_certificado}</strong>.</span>
+                </div>
+            </div>
+        `;
+    } else {
+        // No tiene certificado aún, puede generarlo
+        return `
+            <div class="eval-card" style="max-width:680px; margin:0 auto;">
+                <div class="eval-card-header" style="text-align:center; padding: 32px 24px 16px;">
+                    <span style="font-size: 80px; display: block; margin-bottom: 16px;">📜</span>
+                    <h2 style="font-size: 1.6rem; color: var(--color-text, #1a1a2e); margin-bottom: 8px;">Tu certificado te espera</h2>
+                    <p style="color: #666; font-size: 1rem;">Has aprobado la evaluación de <strong>${moduloTitulo}</strong>. ¡Genera tu certificado ahora!</p>
+                </div>
+
+                <div style="display:flex; justify-content:center; padding: 8px 24px 32px;">
+                    <button id="btn-generar-certificado"
+                        style="display:flex; align-items:center; gap:10px; padding:16px 36px; background:linear-gradient(135deg,#C9A227,#e8c84a); color:#fff; border:none; border-radius:12px; font-size:1.1rem; font-weight:700; cursor:pointer; transition:opacity 0.2s; box-shadow: 0 4px 14px rgba(201,162,39,0.35);">
+                        <i class="fa-solid fa-certificate"></i> Generar mi certificado
+                    </button>
+                </div>
+
+                <div style="background:#fffbea; border:1px solid #C9A227; border-radius:10px; padding:14px 20px; margin:0 24px 24px; display:flex; align-items:center; gap:12px;">
+                    <i class="fa-solid fa-circle-info" style="color:#C9A227; font-size:1.4rem;"></i>
+                    <span style="color:#7a5c00; font-size:0.95rem;">Una vez generado, podrás ver y descargar tu certificado en formato PNG.</span>
+                </div>
+            </div>
+        `;
+    }
+}
+
+async function generarCertificado(moduloId) {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
+    try {
+        const response = await fetch(`${apiUrl}/modulos/${moduloId}/certificacion/generar`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const json = await response.json();
+
+        if (response.ok && json.success) {
+            mostrarMensajeExito('¡Certificado generado exitosamente! 🎓');
+            // Recargar la pantalla del certificado
+            setTimeout(() => cargarCertificado(moduloId), 1500);
+        } else {
+            // Si ya existe, recargar para mostrarlo
+            if (json.data?.codigo_existente) {
+                mostrarMensajeExito('Ya tienes un certificado para este módulo.');
+                setTimeout(() => cargarCertificado(moduloId), 1500);
+            } else {
+                mostrarMensajeBloqueado(json.message || 'No se pudo generar el certificado.');
+                const btnGenerar = document.getElementById('btn-generar-certificado');
+                if (btnGenerar) { btnGenerar.disabled = false; btnGenerar.innerHTML = '<i class="fa-solid fa-certificate"></i> Generar mi certificado'; }
+            }
+        }
+    } catch (error) {
+        console.error('Error generando certificado:', error);
+        mostrarMensajeBloqueado('Error de conexión al generar el certificado.');
+        const btnGenerar = document.getElementById('btn-generar-certificado');
+        if (btnGenerar) { btnGenerar.disabled = false; btnGenerar.innerHTML = '<i class="fa-solid fa-certificate"></i> Generar mi certificado'; }
+    }
+}
+
+
+async function descargarCertificado(codigo) {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+    
+    if (!token) {
+        redirigirALogin();
+        return;
+    }
+    
+    try {
+        mostrarSpinner(true);
+        
+        const response = await fetch(`${apiUrl}/certificaciones/${codigo}/descargar`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'image/png',
+            }
+        });
+        
+        if (response.status === 401) {
+            mostrarMensajeSesionExpirada();
+            return;
+        }
+        
+        if (response.status === 403) {
+            mostrarMensajeBloqueado('No tienes permiso para descargar este certificado');
+            return;
+        }
+        
+        if (!response.ok) {
+            throw new Error('Error al descargar');
+        }
+        
+        // Convertir la respuesta a blob
+        const blob = await response.blob();
+        
+        // Crear URL temporal y descargar
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `certificado-${codigo}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        mostrarMensajeExito('✅ Descarga completada');
+        
+    } catch (error) {
+        console.error('Error en descarga:', error);
+        mostrarMensajeBloqueado('Error al descargar el certificado');
+    } finally {
+        mostrarSpinner(false);
+    }
+}
+
+
+async function verCertificado(codigo) {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+    
+    // Abrir en nueva pestaña con fetch no es práctico, 
+    // así que usamos una ventana nueva con el token en la URL
+    const ventana = window.open('', '_blank');
+    
+    try {
+        const response = await fetch(`${apiUrl}/certificaciones/${codigo}/ver`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Error');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Escribir la imagen en la nueva ventana
+        ventana.document.write(`
+            <html>
+                <head><title>Certificado</title></head>
+                <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f0f0f0;">
+                    <img src="${url}" style="max-width:100%; max-height:100vh; object-fit:contain;">
+                </body>
+            </html>
+        `);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        ventana.close();
+        mostrarMensajeBloqueado('Error al ver el certificado');
+    }
+}
+
+function renderizarEvaluacion(json) {
+    const imagesBase = document.querySelector('main.container')?.dataset.imagesUrl || '/images';
+    const mascotaUrl = `${imagesBase}/gato_evaluacion.png`;
+
+    // Extraer datos del JSON de la API: { success, data: { evaluacion, estado_usuario } }
+    const data = json?.data || {};
+    const evaluacion = data.evaluacion || {};
+    const estadoUsuario = data.estado_usuario || {};
+
+    const evaluacionAprobada = estadoUsuario.ya_aprobo || progresoModulo?.evaluacion_aprobada || false;
+    const puedeIntentar = estadoUsuario.puede_intentar !== false;
+    const mensajeBloqueo = estadoUsuario.mensaje || '';
+    const intentosCompletados = estadoUsuario.intentos_completados || 0;
+    const intentosDisponibles = estadoUsuario.intentos_disponibles;
+    const mejorPorcentaje = estadoUsuario.mejor_porcentaje || 0;
+
+    const titulo = evaluacion.titulo || 'Evaluación';
+    const descripcion = evaluacion.descripcion || '';
+    const tiempoLimite = evaluacion.tiempo_limite || null;
+    const numeroPreguntas = evaluacion.numero_preguntas || null;
+    const puntajeMinimo = evaluacion.puntaje_minimo || null;
+    const maxIntentos = evaluacion.max_intentos || null;
+
+    // Descripción arriba del grid
+    let infoLines = '';
+    if (descripcion) {
+        infoLines += `<p class="eval-info-line eval-desc">${descripcion}</p>`;
+    }
+
+    // Grid de estadísticas con tarjetas visuales
+    let statsCards = '';
+    if (tiempoLimite) {
+        statsCards += `
+            <div class="eval-stat-card">
+                <span class="eval-stat-icon"><i class="fa-regular fa-clock"></i></span>
+                <span class="eval-stat-label">Duración</span>
+                <span class="eval-stat-value">${tiempoLimite} min</span>
+            </div>`;
+    }
+    if (numeroPreguntas) {
+        statsCards += `
+            <div class="eval-stat-card">
+                <span class="eval-stat-icon"><i class="fa-regular fa-circle-question"></i></span>
+                <span class="eval-stat-label">Preguntas</span>
+                <span class="eval-stat-value">${numeroPreguntas}</span>
+            </div>`;
+    }
+    if (puntajeMinimo) {
+        statsCards += `
+            <div class="eval-stat-card">
+                <span class="eval-stat-icon"><i class="fa-solid fa-star"></i></span>
+                <span class="eval-stat-label">Puntaje mínimo</span>
+                <span class="eval-stat-value">${puntajeMinimo}%</span>
+            </div>`;
+    }
+    if (maxIntentos) {
+        const disponibles = intentosDisponibles !== undefined ? intentosDisponibles : maxIntentos;
+        statsCards += `
+            <div class="eval-stat-card">
+                <span class="eval-stat-icon"><i class="fa-solid fa-rotate-right"></i></span>
+                <span class="eval-stat-label">Intentos</span>
+                <span class="eval-stat-value">${disponibles} / ${maxIntentos}</span>
+            </div>`;
+    }
+
+    if (statsCards) {
+        infoLines += `<div class="eval-stats-grid">${statsCards}</div>`;
+    }
+
+    infoLines += `
+        <div class="eval-nota-banner">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>Al finalizar, obtendrás tu puntaje automáticamente.</span>
+        </div>`;
+
+    // Badge estado
+    let badgeHTML = '';
+    if (evaluacionAprobada) {
+        badgeHTML = `<div class="eval-badge eval-badge--aprobado">✓ ¡Ya aprobaste esta evaluación con ${mejorPorcentaje}%!</div>`;
+    } else if (intentosCompletados > 0) {
+        badgeHTML = `<div class="eval-badge eval-badge--intento">Mejor puntaje hasta ahora: <strong>${mejorPorcentaje}%</strong></div>`;
+    }
+
+    // Botón
+    let botonHTML = '';
+    if (evaluacionAprobada) {
+        botonHTML = `<button class="btn-realizar-evaluacion btn-realizar-evaluacion--aprobado" id="btn-iniciar-evaluacion" disabled>✓ Evaluación aprobada</button>`;
+    } else if (!puedeIntentar) {
+        botonHTML = `<button class="btn-realizar-evaluacion btn-realizar-evaluacion--bloqueado" id="btn-iniciar-evaluacion" disabled>🔒 ${mensajeBloqueo || 'No puedes intentar ahora'}</button>`;
+    } else if (estadoUsuario.tiene_intento_en_progreso) {
+        botonHTML = `<button class="btn-realizar-evaluacion" id="btn-iniciar-evaluacion">Continuar evaluación</button>`;
+    } else {
+        botonHTML = `<button class="btn-realizar-evaluacion" id="btn-iniciar-evaluacion">Realizar evaluación</button>`;
+    }
 
     return `
-        <div class="evaluacion-container">
-            <h2>${evaluacion.titulo || 'Evaluación Final'}</h2>
-            <p>${evaluacion.descripcion || 'Responde las siguientes preguntas'}</p>
-            <p><strong>Tiempo límite:</strong> ${evaluacion.tiempo_limite || 30} minutos</p>
-            <p><strong>Puntaje mínimo:</strong> ${evaluacion.puntaje_minimo || 70}%</p>
-            <p><strong>Número de preguntas:</strong> ${evaluacion.numero_preguntas || 10}</p>
-            
-            ${evaluacionAprobada ? `
-                <div style="margin-top: 20px; padding: 15px; background-color: #d4edda; border-radius: 8px; color: #155724;">
-                    <strong>✓ Evaluación ya aprobada</strong>
-                    <p>Ya has aprobado esta evaluación. Puedes ver tu certificado en la sección de logros.</p>
-                </div>
-            ` : ''}
-            
-            <div style="margin-top: 30px;">
-                <button class="btn-start-evaluation" onclick="iniciarEvaluacion(${evaluacion.id})" ${evaluacionAprobada ? 'disabled' : ''}>
-                    ${evaluacionAprobada ? 'Ya aprobada' : 'Comenzar Evaluación'}
-                </button>
+        <div class="evaluacion-vista">
+            <div class="evaluacion-header">
+                <h2 class="evaluacion-titulo">${titulo}</h2>
             </div>
-        </div>
-    `;
+            <div class="evaluacion-body">
+                <div class="evaluacion-info">
+                    ${infoLines}
+                    ${badgeHTML}
+                </div>
+                <div class="evaluacion-mascota" style="margin-left: 48px;">
+                    <img src="${mascotaUrl}" alt="Mascota evaluación" class="eval-mascota-img">
+                </div>
+            </div>
+            <div class="eval-boton-wrap">
+                ${botonHTML}
+            </div>
+        </div>`;
 }
 
 window.iniciarEvaluacion = async function (evaluacionId) {
-    console.log('Iniciar evaluación:', evaluacionId);
-    // Aquí iría la lógica para iniciar la evaluación
-    mostrarMensajeExito('Función de evaluación en desarrollo');
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
+    if (!moduloActual?.id) {
+        mostrarMensajeBloqueado('No se pudo identificar el módulo');
+        return;
+    }
+
+    mostrarSpinner(true);
+    try {
+        const response = await fetch(`${apiUrl}/modulos/${moduloActual.id}/evaluacion/iniciar`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const json = await response.json();
+
+        if (response.ok && json.success) {
+            console.log('Evaluación iniciada:', json.data);
+            mostrarMensajeExito('Evaluación iniciada correctamente');
+            // TODO: renderizar preguntas con json.data.preguntas
+        } else {
+            const msg = json.message || 'No se pudo iniciar la evaluación';
+            mostrarMensajeBloqueado(msg);
+        }
+    } catch (error) {
+        console.error('Error iniciando evaluación:', error);
+        mostrarMensajeBloqueado('Error de conexión al intentar iniciar la evaluación');
+    } finally {
+        mostrarSpinner(false);
+    }
 };
+
 
 function mostrarIntroduccion() {
     const introduccionContent = document.getElementById('introduccionContent');
     const leccionContent = document.getElementById('leccionContent');
 
+    // Mostrar el botón "Siguiente" al volver a la introducción
+    const btnNext = document.getElementById('btnNext');
+    if (btnNext) btnNext.style.display = '';
+
+    // Solo mostrar/ocultar — NO tocar el contenido interno que ya está bien renderizado
     if (introduccionContent) {
         introduccionContent.style.display = 'block';
-
-        // Actualizar la introducción con la descripción larga del módulo si está disponible
-        if (moduloActual && moduloActual.descripcion_larga) {
-            const introHeader = introduccionContent.querySelector('h2');
-            const paragraphs = introduccionContent.querySelectorAll('p');
-
-            if (paragraphs.length > 0) {
-                paragraphs[0].innerHTML = moduloActual.descripcion_larga;
-                for (let i = 1; i < paragraphs.length; i++) {
-                    paragraphs[i].style.display = 'none';
-                }
-            } else {
-                const newParagraph = document.createElement('p');
-                newParagraph.innerHTML = moduloActual.descripcion_larga;
-                introHeader.insertAdjacentElement('afterend', newParagraph);
-            }
-        }
     }
-
     if (leccionContent) {
         leccionContent.style.display = 'none';
     }
@@ -1353,6 +1892,11 @@ async function cerrarSesion(e) {
     const token = localStorage.getItem('auth_token');
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
 
+    // Obtener URLs desde data-attributes (soporta subdirectorios)
+    const mainEl = document.querySelector('main[data-clear-session-url]');
+    const clearSessionUrl = mainEl?.dataset.clearSessionUrl || '/api/clear-session-token';
+    const loginUrl = mainEl?.dataset.loginUrl || '/login';
+
     try {
         await fetch(`${apiUrl}/logout`, {
             method: 'POST',
@@ -1374,20 +1918,22 @@ async function cerrarSesion(e) {
 
         // Limpiar sesión en el servidor
         try {
-            await fetch('/api/clear-session-token', {
+            await fetch(clearSessionUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
                 }
             });
         } catch (error) {
             console.error('Error limpiando sesión:', error);
         }
 
-        // Usar la función de redirección consistente
-        redirigirALogin();
+        // Redirigir al login
+        window.location.href = loginUrl;
     }
 }
+
 
 function configurarBotonSiguiente() {
     const btnNext = document.getElementById('btnNext');
@@ -1417,8 +1963,9 @@ function configurarBotonSiguiente() {
                 leccionActualIndex = 0;
                 const primeraLeccion = lecciones[0];
 
-                // Marcar la primera lección como "desbloqueada" actualizando progreso
-                await marcarLeccionVista(moduloActual.id, primeraLeccion.id, true);
+                // Verificar si la primera lección ya estaba completada
+                const primeraYaCompletada = (progresoModulo?.lecciones_vistas || 0) > 0;
+                await marcarLeccionVista(moduloActual.id, primeraLeccion.id, true, !primeraYaCompletada);
 
                 // Cargar la primera lección
                 await cargarLeccion(moduloActual.slug, primeraLeccion.slug);
@@ -1432,8 +1979,9 @@ function configurarBotonSiguiente() {
                 const leccionActual = lecciones[leccionActualIndex];
 
                 if (leccionActual) {
-                    // Marcar lección actual como vista
-                    await marcarLeccionVista(moduloActual.id, leccionActual.id, true);
+                    // Verificar si ya estaba completada ANTES de llamar a la API
+                    const yaCompletada = leccionActualIndex < (progresoModulo?.lecciones_vistas || 0);
+                    await marcarLeccionVista(moduloActual.id, leccionActual.id, true, !yaCompletada);
                 }
 
                 const siguienteIndex = leccionActualIndex + 1;
@@ -1559,8 +2107,14 @@ function manejarNavegacion() {
     const originalFetch = window.fetch;
     let redirigiendo = false;
 
+    // Rutas locales de Laravel que NO deben recibir el Bearer token
+    const rutasLocales = ['/api/set-session-token', '/api/clear-session-token'];
+
     window.fetch = async function (url, options = {}) {
-        if (url.includes('localhost:8001') || url.includes('/api/')) {
+        const urlString = url.toString();
+        const esRutaLocal = rutasLocales.some(r => urlString.includes(r));
+
+        if (!esRutaLocal && (urlString.includes('localhost:8001') || urlString.includes('/api/'))) {
             const token = localStorage.getItem('auth_token');
 
             if (token) {
@@ -1574,20 +2128,14 @@ function manejarNavegacion() {
                 const response = await originalFetch(url, options);
 
                 if (response.status === 401 && !redirigiendo) {
-                    const urlString = url.toString();
                     const peticionesCriticas = ['/me', '/logout'];
                     const esCritica = peticionesCriticas.some(p => urlString.includes(p));
 
                     if (esCritica) {
                         redirigiendo = true;
-                        // Limpiar localStorage parcialmente (mantener user_avatar para persistencia)
-                        localStorage.removeItem('auth_token');
-                        localStorage.removeItem('user');
-                        localStorage.removeItem('user_nombre');
-                        localStorage.removeItem('user_apellido');
-                        localStorage.removeItem('user_email');
-
                         mostrarMensajeSesionExpirada();
+                        // redirigirALogin() es async y limpia sesión Laravel automáticamente
+                        redirigirALogin('?expired=true');
                     }
                 }
 
@@ -1602,6 +2150,7 @@ function manejarNavegacion() {
     };
 })();
 
+
 function iniciarVerificacionPeriodica() {
     setInterval(() => {
         const token = localStorage.getItem('auth_token');
@@ -1612,3 +2161,612 @@ function iniciarVerificacionPeriodica() {
 }
 
 iniciarVerificacionPeriodica();
+
+// ===============================
+// EVALUACIÓN — iniciar desde tarjeta
+// ===============================
+
+window.iniciarEvaluacion = async function (evaluacionId) {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
+    if (!moduloActual?.id) {
+        mostrarMensajeBloqueado('No se pudo identificar el módulo');
+        return;
+    }
+
+    mostrarSpinner(true);
+    try {
+        const response = await fetch(`${apiUrl}/modulos/${moduloActual.id}/evaluacion/iniciar`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const json = await response.json();
+
+        if (response.ok && json.success) {
+            console.log('✅ Evaluación iniciada:', json.data);
+            abrirModalEvaluacion(json.data);
+        } else {
+            const msg = json.message || 'No se pudo iniciar la evaluación';
+            mostrarMensajeBloqueado(msg);
+        }
+    } catch (error) {
+        console.error('Error iniciando evaluación:', error);
+        mostrarMensajeBloqueado('Error de conexión al intentar iniciar la evaluación');
+    } finally {
+        mostrarSpinner(false);
+    }
+};
+
+// ===============================
+// MODAL DE EVALUACIÓN
+// ===============================
+
+// Estado interno del modal
+let _evalState = {
+    preguntas: [],
+    respuestas: {},        // { preguntaId: { opcion_id?, parejas? } }
+    comprobadas: {},       // { preguntaId: true/false } → ya comprobó esta pregunta
+    indice: 0,
+    intentoId: null,
+    moduloId: null,
+    timerInterval: null,
+    segundosRestantes: 0,
+    titulo: '',
+};
+
+function abrirModalEvaluacion(data) {
+    _evalState.preguntas = data.preguntas || [];
+    _evalState.intentoId = data.intento_id;
+    _evalState.moduloId = data.modulo_id || moduloActual?.id;
+    _evalState.segundosRestantes = data.tiempo_limite_segundos || 0;
+    _evalState.segundosTotales = data.tiempo_limite_segundos || 0; // guardar total para calcular tiempo usado
+    _evalState.titulo = data.titulo || moduloActual?.modulo || 'Evaluación';
+    _evalState.respuestas = {};
+    _evalState.comprobadas = {};
+    _evalState.indice = 0;
+
+    const tituloEl = document.getElementById('eval-modal-titulo');
+    if (tituloEl) tituloEl.textContent = _evalState.titulo;
+
+    const overlay = document.getElementById('eval-modal-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    _iniciarTimerModal();
+    _renderizarPreguntaModal(0);
+
+    if (!abrirModalEvaluacion._listenersOk) {
+        abrirModalEvaluacion._listenersOk = true;
+        document.getElementById('eval-modal-cancel-btn')
+            ?.addEventListener('click', _cerrarModalEvaluacion);
+        document.getElementById('eval-modal-prev-btn')
+            ?.addEventListener('click', () => _navigateModal(-1));
+        document.getElementById('eval-modal-check-btn')
+            ?.addEventListener('click', _comprobarRespuesta);
+        document.getElementById('eval-modal-next-btn')
+            ?.addEventListener('click', () => _navigateModal(1));
+        document.getElementById('eval-modal-finish-btn')
+            ?.addEventListener('click', _finalizarEvaluacionModal);
+    }
+}
+
+function _cerrarModalEvaluacion() {
+    clearInterval(_evalState.timerInterval);
+    const overlay = document.getElementById('eval-modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function _iniciarTimerModal() {
+    clearInterval(_evalState.timerInterval);
+    const timerEl = document.getElementById('eval-modal-timer');
+
+    function tick() {
+        const s = _evalState.segundosRestantes;
+        const mm = String(Math.floor(s / 60)).padStart(2, '0');
+        const ss = String(s % 60).padStart(2, '0');
+        if (timerEl) {
+            timerEl.textContent = `${mm}:${ss}`;
+            timerEl.classList.toggle('urgente', s <= 60);
+        }
+        if (s <= 0) {
+            clearInterval(_evalState.timerInterval);
+            mostrarMensajeBloqueado('¡Tiempo agotado! Enviando respuestas automáticamente...');
+            setTimeout(_finalizarEvaluacionModal, 1500);
+            return;
+        }
+        _evalState.segundosRestantes--;
+    }
+
+    tick();
+    _evalState.timerInterval = setInterval(tick, 1000);
+}
+
+function _renderizarPreguntaModal(indice) {
+    const preguntas = _evalState.preguntas;
+    if (!preguntas.length) return;
+
+    const pregunta = preguntas[indice];
+    _evalState.indice = indice;
+
+    const pct = ((indice + 1) / preguntas.length) * 100;
+    const progressEl = document.getElementById('eval-modal-progress');
+    if (progressEl) progressEl.style.width = `${pct}%`;
+
+    const counterEl = document.getElementById('eval-modal-counter');
+    if (counterEl) counterEl.textContent = `Pregunta ${indice + 1} de ${preguntas.length}`;
+
+    const instrEl = document.getElementById('eval-modal-instrucciones');
+    if (instrEl) instrEl.textContent = pregunta.instrucciones || '';
+
+    const questionEl = document.getElementById('eval-modal-question');
+    if (questionEl) questionEl.textContent = pregunta.pregunta;
+
+    const optionsEl = document.getElementById('eval-modal-options');
+    if (!optionsEl) return;
+    optionsEl.innerHTML = '';
+
+    const yaComprobada = pregunta.id in _evalState.comprobadas;
+
+    if (pregunta.tipo === 'seleccion_multiple' || pregunta.tipo === 'verdadero_falso') {
+        _renderOpcionesMultiple(optionsEl, pregunta, yaComprobada);
+    } else if (pregunta.tipo === 'arrastrar_soltar') {
+        _renderDragAndDrop(optionsEl, pregunta, yaComprobada);
+    }
+
+    const prevBtn = document.getElementById('eval-modal-prev-btn');
+    const checkBtn = document.getElementById('eval-modal-check-btn');
+    const nextBtn = document.getElementById('eval-modal-next-btn');
+    const finishBtn = document.getElementById('eval-modal-finish-btn');
+    const esUltima = indice === preguntas.length - 1;
+
+    if (prevBtn) prevBtn.disabled = (indice === 0);
+    if (checkBtn) { checkBtn.style.display = yaComprobada ? 'none' : ''; }
+    if (nextBtn) { nextBtn.style.display = (yaComprobada && !esUltima) ? '' : 'none'; }
+    if (finishBtn) { finishBtn.style.display = (yaComprobada && esUltima) ? '' : 'none'; }
+}
+
+function _renderOpcionesMultiple(container, pregunta, bloqueada) {
+    const respGuardada = _evalState.respuestas[pregunta.id];
+
+    pregunta.opciones.forEach(opcion => {
+        const label = document.createElement('label');
+        label.className = 'eval-option-label';
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = `pregunta_${pregunta.id}`;
+        radio.value = opcion.id;
+        radio.disabled = bloqueada;
+
+        if (respGuardada?.opcion_id === opcion.id) {
+            radio.checked = true;
+            label.classList.add('selected');
+        }
+
+        if (bloqueada && _evalState.comprobadas[pregunta.id] !== undefined) {
+            const esCorrecta = _evalState.comprobadas[pregunta.id];
+            if (respGuardada?.opcion_id === opcion.id) {
+                label.classList.add(esCorrecta ? 'correcta' : 'incorrecta');
+            }
+        }
+
+        radio.addEventListener('change', () => {
+            container.querySelectorAll('.eval-option-label').forEach(l => l.classList.remove('selected'));
+            label.classList.add('selected');
+            _evalState.respuestas[pregunta.id] = { opcion_id: opcion.id };
+        });
+
+        label.appendChild(radio);
+        label.appendChild(document.createTextNode(opcion.texto));
+        container.appendChild(label);
+    });
+}
+
+function _renderDragAndDrop(container, pregunta, bloqueada) {
+    const opciones = pregunta.opciones;
+    const respGuardada = _evalState.respuestas[pregunta.id]?.parejas || {};
+
+    const dragArea = document.createElement('div');
+    dragArea.className = 'eval-drag-area';
+
+    const colLeft = document.createElement('div');
+    colLeft.className = 'eval-drag-col';
+    colLeft.innerHTML = '<h4>Arrastra</h4>';
+
+    const colRight = document.createElement('div');
+    colRight.className = 'eval-drag-col';
+    colRight.innerHTML = '<h4>Suelta aquí</h4>';
+
+    opciones.forEach(opcion => {
+        const chip = document.createElement('div');
+        chip.className = 'eval-draggable';
+        chip.textContent = opcion.texto;
+        chip.draggable = !bloqueada;
+        chip.dataset.opcionId = opcion.id;
+
+        chip.addEventListener('dragstart', (e) => {
+            chip.classList.add('dragging');
+            e.dataTransfer.setData('opcionId', opcion.id);
+            e.dataTransfer.setData('opcionTexto', opcion.texto);
+        });
+        chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+        colLeft.appendChild(chip);
+
+        const zona = document.createElement('div');
+        zona.className = 'eval-drop-zone';
+
+        const labelTexto = document.createElement('span');
+        labelTexto.className = 'eval-drop-label';
+        labelTexto.textContent = opcion.pareja_arrastre || '?';
+
+        const blank = document.createElement('div');
+        blank.className = 'eval-blank';
+        blank.dataset.pairingTarget = opcion.pareja_arrastre || '';
+        blank.dataset.opcionId = opcion.id;
+
+        if (respGuardada[opcion.id]) {
+            blank.textContent = respGuardada[opcion.id].texto;
+            blank.classList.add('filled');
+        }
+
+        if (bloqueada && _evalState.comprobadas[pregunta.id] !== undefined) {
+            const esCorrecta = _evalState.comprobadas[pregunta.id];
+            blank.classList.add(esCorrecta ? 'correcta' : 'incorrecta');
+        }
+
+        if (!bloqueada) {
+            blank.addEventListener('dragover', (e) => { e.preventDefault(); blank.classList.add('drag-over'); });
+            blank.addEventListener('dragleave', () => blank.classList.remove('drag-over'));
+            blank.addEventListener('drop', (e) => {
+                e.preventDefault();
+                blank.classList.remove('drag-over');
+                const id = e.dataTransfer.getData('opcionId');
+                const txt = e.dataTransfer.getData('opcionTexto');
+                blank.textContent = txt;
+                blank.classList.add('filled');
+
+                if (!_evalState.respuestas[pregunta.id]) {
+                    _evalState.respuestas[pregunta.id] = { parejas: {} };
+                }
+                _evalState.respuestas[pregunta.id].parejas[opcion.id] = { id_opcion: id, texto: txt, pareja: opcion.pareja_arrastre };
+            });
+        }
+
+        zona.appendChild(labelTexto);
+        zona.appendChild(blank);
+        colRight.appendChild(zona);
+    });
+
+    dragArea.appendChild(colLeft);
+    dragArea.appendChild(colRight);
+    container.appendChild(dragArea);
+}
+
+async function _comprobarRespuesta() {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+    const pregunta = _evalState.preguntas[_evalState.indice];
+    const resp = _evalState.respuestas[pregunta.id];
+
+    if (!resp) {
+        mostrarMensajeBloqueado('Selecciona una respuesta antes de comprobar');
+        return;
+    }
+
+    let body = { pregunta_id: pregunta.id };
+    if (pregunta.tipo === 'seleccion_multiple' || pregunta.tipo === 'verdadero_falso') {
+        if (!resp.opcion_id) { mostrarMensajeBloqueado('Selecciona una opción'); return; }
+        body.opcion_id = resp.opcion_id;
+    } else if (pregunta.tipo === 'arrastrar_soltar') {
+        const parejas = resp.parejas;
+        if (!parejas || Object.keys(parejas).length === 0) {
+            mostrarMensajeBloqueado('Arrastra todos los elementos a su lugar');
+            return;
+        }
+        body.parejas = Object.values(parejas).map(p => ({ id_opcion: parseInt(p.id_opcion), pareja: p.pareja }));
+    }
+
+    try {
+        const response = await fetch(
+            `${apiUrl}/modulos/${_evalState.moduloId}/evaluacion/${_evalState.intentoId}/respuesta`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            }
+        );
+
+        const json = await response.json();
+        if (response.ok && json.success) {
+            const esCorrecta = json.data.es_correcta;
+            _evalState.comprobadas[pregunta.id] = esCorrecta;
+            _renderizarPreguntaModal(_evalState.indice);
+
+            const optionsEl = document.getElementById('eval-modal-options');
+            if (optionsEl) {
+                const fb = document.createElement('div');
+                fb.className = `eval-feedback ${esCorrecta ? 'correcto' : 'incorrecto'}`;
+                fb.textContent = esCorrecta ? '✅ ¡Correcto!' : '❌ Respuesta incorrecta';
+                optionsEl.appendChild(fb);
+            }
+        } else {
+            mostrarMensajeBloqueado(json.message || 'Error al comprobar respuesta');
+        }
+    } catch (e) {
+        console.error('Error comprobando respuesta:', e);
+        mostrarMensajeBloqueado('Error de conexión');
+    }
+}
+
+function _navigateModal(delta) {
+    const nuevo = _evalState.indice + delta;
+    if (nuevo < 0 || nuevo >= _evalState.preguntas.length) return;
+    _renderizarPreguntaModal(nuevo);
+}
+
+async function _finalizarEvaluacionModal() {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
+    clearInterval(_evalState.timerInterval);
+    mostrarSpinner(true);
+
+    try {
+        const response = await fetch(
+            `${apiUrl}/modulos/${_evalState.moduloId}/evaluacion/${_evalState.intentoId}/finalizar`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        const json = await response.json();
+
+        if (response.ok && json.success) {
+            _mostrarResultadoModal(json.data);
+        } else {
+            mostrarMensajeBloqueado(json.message || 'Error al finalizar la evaluación');
+            _cerrarModalEvaluacion();
+        }
+    } catch (e) {
+        console.error('Error finalizando evaluación:', e);
+        mostrarMensajeBloqueado('Error de conexión al finalizar');
+        _cerrarModalEvaluacion();
+    } finally {
+        mostrarSpinner(false);
+    }
+}
+
+function _mostrarResultadoModal(data) {
+    const overlay = document.getElementById('eval-modal-overlay');
+    const modal = overlay?.querySelector('.eval-modal');
+    if (!modal) return;
+
+    const aprobado = data.aprobado;
+    const porcentaje = Math.round(data.porcentaje_obtenido || 0);
+    const correctas = data.preguntas_correctas || 0;
+    const totales = data.preguntas_totales || _evalState.preguntas.length;
+    const mensaje = data.mensaje || (aprobado
+        ? '¡Felicidades! Has superado la evaluación.'
+        : '¡Buen intento! Estudia un poco más y vuelve a intentarlo');
+
+    // Calcular tiempo usado
+    const segundosUsados = (_evalState.segundosTotales || 0) - (_evalState.segundosRestantes || 0);
+    const mm = String(Math.floor(segundosUsados / 60)).padStart(2, '0');
+    const ss = String(segundosUsados % 60).padStart(2, '0');
+    const tiempoUsado = `${mm}:${ss}`;
+
+    // URLs de imágenes
+    const imagesBase = document.querySelector('main.container')?.dataset.imagesUrl || '/images';
+    const logoUrl = document.querySelector('.logo')?.src || `${imagesBase.replace('/images', '')}/images/logo_blanco.png`;
+    const mascotaUrl = aprobado ? `${imagesBase}/bien1.png` : `${imagesBase}/error1.png`;
+    const moduloNombre = (moduloActual?.modulo || _evalState.titulo || 'Módulo').toUpperCase();
+
+    modal.innerHTML = `
+        <div class="eval-result-screen">
+
+            <!-- Cabecera con logo -->
+            <div class="eval-result-header">
+                <img src="${imagesBase}/logo_azul.png" alt="Varchate" class="eval-result-logo" onerror="this.style.display='none'">
+            </div>
+
+            <!-- Cuerpo: mascota | info -->
+            <div class="eval-result-body">
+                <div class="eval-result-mascota">
+                    <img src="${mascotaUrl}" alt="${aprobado ? 'Aprobado' : 'No aprobado'}" class="eval-result-mascota-img">
+                </div>
+
+                <div class="eval-result-info">
+                    <p class="eval-result-label">Modulo</p>
+                    <h2 class="eval-result-modulo">${moduloNombre}</h2>
+
+                    <div class="eval-result-tiempo">
+                        <span class="eval-result-tiempo-label">TIEMPO</span>
+                        <span class="eval-result-tiempo-valor">${tiempoUsado}</span>
+                    </div>
+
+                    <div class="eval-result-score">
+                        ${aprobado ? `
+                            <p class="eval-result-score-line eval-result-score-title">¡Felicidades!</p>
+                            <p class="eval-result-score-line">Has respondido correctamente <strong>${correctas} de ${totales}</strong> preguntas.</p>
+                            <p class="eval-result-score-line">Has superado la evaluación con éxito</p>
+                        ` : `
+                            <p class="eval-result-score-line eval-result-score-title">¡Buen intento!</p>
+                            <p class="eval-result-score-line">Has respondido correctamente <strong>${correctas} de ${totales}</strong> preguntas.</p>
+                            <p class="eval-result-score-line">Estudia un poco más y vuelve a intentarlo.</p>
+                        `}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones inferiores -->
+            <div class="eval-result-footer">
+                <button class="eval-result-btn-secondary" id="eval-ver-respuestas-btn">Ver mis respuestas</button>
+                <button class="eval-result-btn-primary" id="eval-close-result-btn">Cerrar</button>
+            </div>
+        </div>
+    `;
+
+    // Estilos de la pantalla de resultado (inline para no depender de CSS externo)
+    if (!document.getElementById('eval-result-styles')) {
+        const st = document.createElement('style');
+        st.id = 'eval-result-styles';
+        st.textContent = `
+            .eval-result-screen {
+                display: flex;
+                flex-direction: column;
+                background: #D9EEFF;
+                border-radius: 18px;
+                min-height: 420px;
+                overflow: hidden;
+                width: 100%;
+            }
+            .eval-result-header {
+                padding: 20px 24px 8px;
+                display: flex;
+                align-items: center;
+            }
+            .eval-result-logo {
+                height: 36px;
+                /* intento mostrar logo, puede fallar si la ruta es distinta */
+            }
+            .eval-result-body {
+                display: flex;
+                align-items: center;
+                gap: 28px;
+                flex: 1;
+                padding: 0 32px 16px;
+            }
+            .eval-result-mascota {
+                flex-shrink: 0;
+            }
+            .eval-result-mascota-img {
+                width: 180px;
+                height: auto;
+                object-fit: contain;
+            }
+            .eval-result-info {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                padding-left: 16px;
+            }
+            .eval-result-label {
+                font-size: 13px;
+                color: #555;
+                margin: 0;
+                font-weight: 500;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            .eval-result-modulo {
+                font-size: 2.4rem;
+                font-weight: 800;
+                color: #1a1a2e;
+                margin: 0;
+                line-height: 1.1;
+            }
+            .eval-result-tiempo {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-top: 2px;
+            }
+            .eval-result-tiempo-label {
+                font-size: 12px;
+                font-weight: 700;
+                color: #777;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+            }
+            .eval-result-tiempo-valor {
+                font-size: 14px;
+                font-weight: 700;
+                color: #1a1a2e;
+            }
+            .eval-result-score {
+                margin-top: 10px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .eval-result-score-line {
+                font-size: 1rem;
+                font-weight: 700;
+                color: #1a1a2e;
+                margin: 0;
+                line-height: 1.5;
+            }
+            .eval-result-score-title {
+                font-size: 1.15rem;
+                font-weight: 800;
+            }
+            .eval-result-score-line strong {
+                color: #1a1a2e;
+            }
+            .eval-result-footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px 24px;
+                gap: 12px;
+                border-top: 1px solid rgba(0,0,0,0.07);
+            }
+            .eval-result-btn-secondary {
+                background: #0099FF;
+                color: #fff;
+                border: none;
+                border-radius: 30px;
+                padding: 12px 28px;
+                font-size: 0.95rem;
+                font-weight: 700;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .eval-result-btn-secondary:hover { background: #007acc; }
+            .eval-result-btn-primary {
+                background: #0099FF;
+                color: #fff;
+                border: none;
+                border-radius: 30px;
+                padding: 12px 28px;
+                font-size: 0.95rem;
+                font-weight: 700;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .eval-result-btn-primary:hover { background: #007acc; }
+        `;
+        document.head.appendChild(st);
+    }
+
+    // Botón cerrar
+    document.getElementById('eval-close-result-btn')?.addEventListener('click', async () => {
+        _cerrarModalEvaluacion();
+        if (moduloActual?.id) {
+            await cargarProgresoModulo(moduloActual.id);
+            cargarEvaluacion(moduloActual.id);
+        }
+    });
+
+    // Botón ver respuestas — muestra las respuestas del intento (futuro)
+    document.getElementById('eval-ver-respuestas-btn')?.addEventListener('click', () => {
+        mostrarMensajeExito('Función de revisión próximamente disponible');
+    });
+}

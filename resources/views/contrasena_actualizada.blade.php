@@ -4,6 +4,10 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contraseña actualizada - Varchate</title>
+  <!-- Anti-flash: aplicar tema ANTES del render -->
+  <script>try { var t = localStorage.getItem('varchate_theme'); if (t === 'dark') { document.documentElement.classList.add('dark-mode'); } } catch (e) { }</script>
+  @vite('resources/js/theme.js')
+  @vite('resources/css/dark-mode.css')
   @vite('resources/css/contrasena_actualizada.css')
 </head>
 
@@ -16,9 +20,9 @@
         <div class="icon-check">✔</div>
         <h2>¡Contraseña actualizada!</h2>
         <p>La contraseña se cambió con éxito. Vuelve a iniciar sesión.</p>
-         <a href="/login">
-            <button type="button">Entrar</button>
-          </a>
+        <a href="/login">
+          <button type="button">Entrar</button>
+        </a>
       </div>
     </div>
     <img src="{{ asset('images/alegre.png') }}" alt="Gato feliz" class="cat">
@@ -31,4 +35,5 @@
   </div>
 
 </body>
+
 </html>

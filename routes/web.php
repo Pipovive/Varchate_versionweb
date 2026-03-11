@@ -53,7 +53,6 @@ Route::get('/terminos', function () {
     return view('terminos');
 })->name('terminos');
 
-
 // ===============================
 // RUTAS PROTEGIDAS (requieren token de sesión)
 // ===============================
@@ -68,12 +67,13 @@ Route::middleware('auth')->group(function () {
             return view('modulo', ['slug' => $slug]);
         }
         )->name('modulo.detalle');
-    });
 
-// Perfil: accesible públicamente, la auth real es JWT manejada en JS
-Route::get('/perfil', function () {
-    return view('perfil');
-})->name('perfil');
+        // Perfil: protegido por sesión Laravel
+        Route::get('/perfil', function () {
+            return view('perfil');
+        }
+        )->name('perfil');
+    });
 
 // ===============================
 // API LOCAL PARA MANEJAR SESIÓN
@@ -89,6 +89,9 @@ Route::post('/api/set-session-token', function (Request $request) {
 });
 
 Route::post('/api/clear-session-token', function () {
-    session()->forget('auth_token');
+    // Invalidar completamente la sesión de Laravel
+    session()->flush();
+    session()->invalidate();
+    session()->regenerateToken();
     return response()->json(['success' => true]);
 });

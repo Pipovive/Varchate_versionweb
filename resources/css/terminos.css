@@ -22,7 +22,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .logo-link {
@@ -107,7 +107,7 @@ body {
     border: 1px solid #B3B3B3;
     border-radius: 10px;
     padding: 2.5rem;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .terminos-container h1 {
@@ -358,13 +358,18 @@ body {
 input:focus {
     outline: none;
     border: 1px solid #3478E6;
-    box-shadow: 0 0 4px rgba(91,104,248,0.4);
+    box-shadow: 0 0 4px rgba(91, 104, 248, 0.4);
 }
 
 /* --- Animaciones --- */
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes slideUp {
@@ -372,6 +377,7 @@ input:focus {
         opacity: 0;
         transform: translateY(30px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -446,45 +452,5 @@ input:focus {
     }
 }
 
-/* --- Modo oscuro --- */
-body.dark-mode {
-    background: #1a1a1a;
-    color: #e0e0e0;
-}
-
-body.dark-mode .terminos-container {
-    background: #2d2d2d;
-    border-color: #404040;
-}
-
-body.dark-mode .terminos-container h1 {
-    color: #e0e0e0;
-}
-
-body.dark-mode .termino-seccion p,
-body.dark-mode .termino-seccion ul li {
-    color: #b0b0b0;
-}
-
-body.dark-mode .btn-cancelar {
-    background: #3d3d3d;
-    color: #e0e0e0;
-    border-color: #505050;
-}
-
-body.dark-mode .btn-cancelar:hover {
-    background: #4d4d4d;
-}
-
-body.dark-mode .fecha-actualizacion {
-    border-bottom-color: #404040;
-}
-
-body.dark-mode .footer-simple {
-    background: #2d2d2d;
-    border-top-color: #404040;
-}
-
-body.dark-mode .footer-simple p {
-    color: #b0b0b0;
-}
+/* --- Modo oscuro (corregido: html.dark-mode, no body.dark-mode) --- */
+/* Los estilos de dark mode se gestionan desde dark-mode.css global */

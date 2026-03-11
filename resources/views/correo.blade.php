@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Enlace de Confirmación</title>
+  <!-- Anti-flash: aplicar tema ANTES del render -->
+  <script>try { var t = localStorage.getItem('varchate_theme'); if (t === 'dark') { document.documentElement.classList.add('dark-mode'); } } catch (e) { }</script>
+  @vite('resources/js/theme.js')
+  @vite('resources/css/dark-mode.css')
   @vite('resources/css/enlace.css')
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -22,4 +28,5 @@
   </div>
   @vite('resources/js/correo.js')
 </body>
+
 </html>

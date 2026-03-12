@@ -40,9 +40,6 @@ Route::get('/register', function () {
 Route::get('/recuperar', function () {
     return view('recuperar');
 });
-Route::get('/enlace', function () {
-    return view('enlace');
-});
 
 Route::get('/reset-password', function () {
     return view('nueva_contrasena');
@@ -51,7 +48,6 @@ Route::get('/reset-password', function () {
 Route::get('/terminos', function () {
     return view('terminos');
 })->name('terminos');
-
 
 // ===============================
 // RUTAS PROTEGIDAS (requieren token de sesión)

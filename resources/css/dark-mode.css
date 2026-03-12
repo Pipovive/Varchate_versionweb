@@ -1,0 +1,766 @@
+/**
+ * VARCHATE — Sistema Global de Dark Mode
+ * Se aplica cuando theme.js añade la clase 'dark-mode' al elemento <html>
+ * Paleta basada en el modelo visual oficial:
+ *   Fondo primario:   #2a2f3f
+ *   Fondo card/panel: #3a4152
+ *   Fondo input:      #1a1f2e
+ *   Texto primario:   #e6eef8
+ *   Texto secundario: #b8b8c8
+ *   Bordes:           #4a5062
+ *   Navbar azul:      SIN CAMBIOS
+ *   Botones azules:   SIN CAMBIOS
+ */
+
+/* Transición global suave al cambiar tema */
+*,
+*::before,
+*::after {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ============================================================
+   ESTILOS BASE — aplica a todas las vistas
+   ============================================================ */
+
+html.dark-mode {
+  background-color: #2a2f3f;
+  color: #e6eef8;
+}
+
+html.dark-mode body {
+  background-color: #2a2f3f;
+  color: #e6eef8;
+}
+
+/* Textos genéricos */
+html.dark-mode h1,
+html.dark-mode h2,
+html.dark-mode h3,
+html.dark-mode h4 {
+  color: #e6eef8;
+}
+
+html.dark-mode p {
+  color: #b8b8c8;
+}
+
+/* Inputs genéricos */
+html.dark-mode input,
+html.dark-mode textarea,
+html.dark-mode select {
+  background: #1a1f2e;
+  color: #e6eef8;
+  border-color: #4a5062;
+}
+
+html.dark-mode input::placeholder,
+html.dark-mode textarea::placeholder {
+  color: #7a8899;
+}
+
+html.dark-mode input:focus,
+html.dark-mode textarea:focus {
+  border-color: #6ea3f5;
+  box-shadow: 0 0 4px rgba(110, 163, 245, 0.4);
+}
+
+/* Las olas decorativas SIEMPRE visibles en dark mode — nunca se ocultan */
+html.dark-mode .olas,
+html.dark-mode .ola2,
+html.dark-mode .ola1,
+html.dark-mode .ola-bottom img,
+html.dark-mode .wave-section img,
+html.dark-mode .wave-section .ola2 {
+  opacity: 1 !important;
+  filter: none !important;
+  visibility: visible !important;
+}
+
+
+/* ============================================================
+   VISTA MÓDULO (modulo.blade.php)
+   ============================================================ */
+
+/* Body / fondo principal */
+html.dark-mode body:has(.container[data-modulo-base-url]),
+html.dark-mode body:has(main[data-modulo-base-url]) {
+  background: #2a2f3f;
+}
+
+/* Progress bar container */
+html.dark-mode .progress-container {
+  background: #3a4152;
+  border-color: #4a5062;
+  color: #e6eef8;
+}
+
+/* Botones de módulos (top-buttons) — NO el botón activo azul */
+html.dark-mode .top-buttons button {
+  background: #3a4152;
+  color: #9fc3f5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+html.dark-mode .top-buttons button:hover {
+  background: #4a5062;
+  color: #c0d8f8;
+}
+
+html.dark-mode .top-buttons button.active {
+  background: #0099FF;
+  /* azul de marca — sin cambio */
+  color: #FFFFFF;
+}
+
+/* Sidebar */
+html.dark-mode .sidebar button {
+  background: #3a4152;
+  color: #b8b8c8;
+}
+
+html.dark-mode .sidebar button:hover {
+  background: #4a5062;
+  color: #e6eef8;
+}
+
+html.dark-mode .sidebar button.active {
+  background: #0094ff;
+  /* azul — sin cambio */
+  color: white;
+}
+
+html.dark-mode .sidebar button.locked {
+  background: rgba(42, 47, 63, 0.6);
+  color: #7a8899;
+}
+
+/* Menú usuario desplegable */
+html.dark-mode .user-menu {
+  background: #3a4152;
+  border-color: #4a5062;
+}
+
+html.dark-mode .user-menu .menu-item {
+  color: #e6eef8;
+}
+
+html.dark-mode .user-menu .menu-item:hover {
+  background: #4a5062;
+}
+
+html.dark-mode .user-menu-mobile {
+  background: #3a4152;
+  border-color: #4a5062;
+}
+
+html.dark-mode .user-menu-mobile .menu-item {
+  color: #e6eef8;
+}
+
+html.dark-mode .user-menu-mobile .menu-item:hover {
+  background: #4a5062;
+}
+
+/* Contenido principal (área central) */
+html.dark-mode .content {
+  background: #3a4152;
+}
+
+html.dark-mode .intro-header {
+  color: #e6eef8;
+}
+
+html.dark-mode h3 {
+  color: #e6eef8;
+}
+
+/* Lecciones / cards */
+html.dark-mode .lesson {
+  background: rgba(58, 65, 82, 0.8);
+  border-color: #4a5062;
+}
+
+html.dark-mode .lesson p {
+  color: #b8b8c8;
+}
+
+html.dark-mode .lesson strong {
+  color: #e6eef8;
+}
+
+/* Áreas de evaluación */
+html.dark-mode .eval-stat-card {
+  background: linear-gradient(135deg, #2a2f3f 0%, #3a4152 100%);
+  border-color: #4a5062;
+}
+
+html.dark-mode .eval-stat-label {
+  color: #b8b8c8;
+}
+
+html.dark-mode .eval-stat-value {
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-info-line {
+  color: #b8b8c8;
+}
+
+html.dark-mode .eval-info-line strong {
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-nota-banner {
+  background: #2a3550;
+  border-left-color: #6ea3f5;
+  color: #9fc3f5;
+}
+
+html.dark-mode .evaluacion-titulo {
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-badge--aprobado {
+  background: #0d2e1a;
+  color: #6ee7b7;
+  border-color: #065f46;
+}
+
+html.dark-mode .eval-badge--intento {
+  background: #2e2108;
+  color: #fcd34d;
+  border-color: #92400e;
+}
+
+/* Modal de evaluación — contenedor principal */
+html.dark-mode .eval-modal {
+  background: #2e3447;
+  color: #e6eef8;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Header del modal */
+html.dark-mode .eval-modal-header {
+  background: #232837 !important;
+  border-bottom-color: #0099FF;
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-modal-title {
+  color: #e6eef8;
+}
+
+html.dark-mode #eval-modal-counter {
+  color: #9fc3f5;
+}
+
+/* Barra de progreso del modal */
+html.dark-mode .eval-progress-bar {
+  background: #3a4152;
+}
+
+/* Timer */
+html.dark-mode .eval-time-box {
+  background: rgba(0, 153, 255, 0.15);
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-timer {
+  color: #e6eef8;
+}
+
+/* Cuerpo del modal */
+html.dark-mode .eval-modal-body {
+  background: #3a4152 !important;
+  border-color: #4a5062 !important;
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-instrucciones {
+  color: #9fc3f5;
+}
+
+html.dark-mode .eval-question {
+  color: #e6eef8;
+}
+
+/* Opciones de respuesta (label con radio) */
+html.dark-mode .eval-option-label {
+  background: #4a5062;
+  border-color: #5a6a8a;
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-option-label:hover {
+  background: #555f75;
+  border-color: #0099FF;
+}
+
+html.dark-mode .eval-option-label.selected {
+  background: #1e3a5f;
+  border-color: #0099FF;
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-option-label.correcta {
+  background: #0d2e1a;
+  border-color: #28a745;
+  color: #6ee7b7;
+}
+
+html.dark-mode .eval-option-label.incorrecta {
+  background: #2e0f0f;
+  border-color: #dc3545;
+  color: #f09090;
+}
+
+/* Feedback de respuesta */
+html.dark-mode .eval-feedback.correcto {
+  background: #0d2e1a;
+  color: #6ee7b7;
+  border-color: #28a745;
+}
+
+html.dark-mode .eval-feedback.incorrecto {
+  background: #2e0f0f;
+  color: #f09090;
+  border-color: #dc3545;
+}
+
+/* Footer del modal */
+html.dark-mode .eval-modal-footer {
+  background: #2e3447;
+  border-top: 1px solid #4a5062;
+}
+
+/* Elementos de drag & drop */
+html.dark-mode .eval-drag-col h4 {
+  color: #9fc3f5;
+}
+
+html.dark-mode .eval-blank {
+  background: #3a4152;
+  border-color: #5a6a8a;
+  color: #9fc3f5;
+}
+
+html.dark-mode .eval-blank.drag-over {
+  background: #1e3a5f;
+  border-color: #0099FF;
+}
+
+html.dark-mode .eval-blank.filled {
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-drop-label {
+  color: #e6eef8;
+}
+
+/* Pantalla de resultado */
+html.dark-mode .eval-resultado-titulo {
+  color: #e6eef8;
+}
+
+html.dark-mode .eval-resultado-detalle {
+  color: #b8b8c8;
+}
+
+/* Selector anterior (ya no se usa, pero lo mantenemos por compatibilidad) */
+html.dark-mode .eval-option-btn {
+  background: #4a5062;
+  color: #e6eef8;
+  border-color: #5a6072;
+}
+
+html.dark-mode .eval-option-btn:hover {
+  background: #5a6072;
+}
+
+/* ============================================================
+   VISTA PERFIL (perfil.blade.php)
+   ============================================================ */
+
+/* NOTA CRÍTICA: .header usa background-image (SVG de ola) — NO sobrescribir con shorthand 'background'
+   Solo se puede tocar background-color para preservar las olas */
+/* html.dark-mode .header — el navbar azul con ola NO debe cambiar */
+
+html.dark-mode .perfil-card {
+  background: rgba(58, 65, 82, 0.7);
+  border: 1px solid #4a5062;
+}
+
+html.dark-mode .perfil h2 {
+  color: #e6eef8;
+}
+
+html.dark-mode .campo label {
+  color: #e6eef8;
+}
+
+html.dark-mode .campo input {
+  background: #1a1f2e;
+  color: #e6eef8;
+  border-color: #4a5062;
+}
+
+html.dark-mode .campo small {
+  color: #b8b8c8;
+}
+
+/* Botón regresar en perfil */
+html.dark-mode .btn-regresar {
+  background: #3a4152;
+  color: #e6eef8;
+  border-color: #4a5062;
+}
+
+html.dark-mode .btn-regresar:hover {
+  background: #4a5062;
+}
+
+/* Sección progreso */
+html.dark-mode .progreso h2 {
+  color: #e6eef8;
+}
+
+html.dark-mode .contenedor-progreso {
+  background: rgba(58, 65, 82, 0.5);
+}
+
+html.dark-mode .card {
+  background: rgba(58, 65, 82, 0.8);
+  border: 1px solid #4a5062;
+}
+
+html.dark-mode .card h3 {
+  color: #e6eef8;
+}
+
+html.dark-mode .barra {
+  background: #2a2f3f;
+  box-shadow: 0 0 6px rgba(110, 163, 245, 0.3);
+}
+
+/* Modal de avatar */
+html.dark-mode .modal-box {
+  background: #3a4152;
+  color: #e6eef8;
+}
+
+html.dark-mode .modal-box h2 {
+  color: #e6eef8;
+}
+
+html.dark-mode .modal-eliminar-content {
+  background: #3a4152;
+  color: #e6eef8;
+}
+
+html.dark-mode .btn-cancel {
+  background: #4a5062;
+  color: #e6eef8;
+  border-color: #5a6072;
+}
+
+html.dark-mode .btn-cancel:hover {
+  background: #5a6072;
+}
+
+/* Toggle password icon */
+html.dark-mode .toggle-pass svg path,
+html.dark-mode .toggle-pass svg circle {
+  stroke: #9fc3f5;
+}
+
+/* ============================================================
+   VISTA TÉRMINOS (terminos.blade.php)
+   ============================================================ */
+
+/* header-simple azul — se preserva el degradado azul */
+/* html.dark-mode .header-simple — NO TOCAR */
+
+html.dark-mode .terminos-container {
+  background: #3a4152;
+  border-color: #4a5062;
+}
+
+html.dark-mode .terminos-container h1 {
+  color: #e6eef8;
+}
+
+html.dark-mode .fecha-actualizacion {
+  color: #b8b8c8;
+  border-bottom-color: #4a5062;
+}
+
+html.dark-mode .termino-seccion p,
+html.dark-mode .termino-seccion ul li {
+  color: #b8b8c8;
+}
+
+html.dark-mode .termino-seccion strong {
+  color: #e6eef8;
+}
+
+html.dark-mode .btn-cancelar {
+  background: #4a5062;
+  color: #e6eef8;
+  border-color: #5a6072;
+}
+
+html.dark-mode .btn-cancelar:hover {
+  background: #5a6072;
+}
+
+html.dark-mode .footer-simple {
+  background: #2a2f3f;
+  border-top-color: #4a5062;
+}
+
+html.dark-mode .footer-simple p {
+  color: #b8b8c8;
+}
+
+html.dark-mode .btn-regresar {
+  background: #3a4152;
+  color: #9fc3f5;
+  border-color: #4a5062;
+}
+
+html.dark-mode .btn-regresar:hover {
+  background: #4a5062;
+  color: #e6eef8;
+}
+
+/* ============================================================
+   VISTAS DE AUTENTICACIÓN (login, register, recuperar, etc.)
+   ============================================================ */
+
+/* Contenedor principal de auth views */
+html.dark-mode .login-box,
+html.dark-mode .register-box,
+html.dark-mode .recovery-box {
+  background: #3a4152;
+  border-color: #4a5062;
+  color: #e6eef8;
+}
+
+html.dark-mode .login-box h2,
+html.dark-mode .register-box h2,
+html.dark-mode .recovery-box h2 {
+  color: #e6eef8;
+}
+
+html.dark-mode .recovery-box p {
+  color: #b8b8c8;
+}
+
+/* Inputs de auth */
+html.dark-mode .input-text,
+html.dark-mode .input-password {
+  background: #1a1f2e;
+  color: #e6eef8;
+  border-color: #4a5062;
+}
+
+html.dark-mode .input-text::placeholder,
+html.dark-mode .input-password::placeholder {
+  color: #7a8899;
+}
+
+/* Links de auth */
+html.dark-mode .login-box a,
+html.dark-mode .register-box a {
+  color: #9fc3f5;
+}
+
+html.dark-mode .login-box a:hover,
+html.dark-mode .register-box a:hover {
+  color: #c0d8f8;
+}
+
+/* Texto de registro / login */
+html.dark-mode .register,
+html.dark-mode .login-link,
+html.dark-mode .register a,
+html.dark-mode .login-link a {
+  color: #b8b8c8;
+}
+
+html.dark-mode .register a,
+html.dark-mode .login-link a {
+  color: #9fc3f5;
+}
+
+/* Botones sociales */
+html.dark-mode .social-login button,
+html.dark-mode .social-register button {
+  background: #1a1f2e;
+  color: #b8b8c8;
+}
+
+html.dark-mode .social-login .facebook {
+  border-color: #4a7ad4;
+  color: #9fc3f5;
+}
+
+html.dark-mode .social-login .gmail {
+  border-color: #c44a3a;
+  color: #f09090;
+}
+
+html.dark-mode .social-register .facebook {
+  border-color: #4a7ad4;
+  color: #9fc3f5;
+}
+
+html.dark-mode .social-register .gmail {
+  border-color: #c44a3a;
+  color: #f09090;
+}
+
+/* Separador "O" */
+html.dark-mode .divider {
+  color: #7a8899;
+}
+
+html.dark-mode .divider::before,
+html.dark-mode .divider::after {
+  border-color: #4a5062;
+}
+
+/* Mensajes error / éxito */
+html.dark-mode .login-error {
+  background: #2e0f0f;
+  color: #f09090;
+  border-color: #7a2020;
+}
+
+html.dark-mode .login-success {
+  background: #0f2e14;
+  color: #90f0a0;
+  border-color: #1e7e34;
+}
+
+/* Modal de correo no verificado (login) */
+html.dark-mode .modal-content {
+  background: #3a4152;
+  color: #e6eef8;
+}
+
+html.dark-mode .modal-header {
+  border-bottom-color: #4a5062;
+}
+
+html.dark-mode .modal-body p {
+  color: #b8b8c8;
+}
+
+html.dark-mode .btn-secondary {
+  background: #4a5062;
+  color: #e6eef8;
+}
+
+html.dark-mode .btn-secondary:hover {
+  background: #5a6072;
+}
+
+/* ============================================================
+   VISTA ENLACE / CORREO (enlace.blade.php, correo.blade.php)
+   ============================================================ */
+
+html.dark-mode .box {
+  background: #3a4152;
+  border: 1px solid #4a5062;
+  border-radius: 12px;
+  color: #e6eef8;
+}
+
+html.dark-mode .box h2 {
+  color: #e6eef8;
+}
+
+html.dark-mode .box p {
+  color: #b8b8c8;
+}
+
+html.dark-mode .icon-check {
+  color: #6ee7b7;
+}
+
+html.dark-mode footer p {
+  color: #b8b8c8;
+}
+
+html.dark-mode footer a {
+  color: #9fc3f5;
+}
+
+/* ============================================================
+   VISTA NUEVA CONTRASEÑA (nueva_contrasena.blade.php)
+   ============================================================ */
+
+html.dark-mode .recovery-box input {
+  background: #1a1f2e;
+  color: #e6eef8;
+  border-color: #4a5062;
+}
+
+/* ============================================================
+   VISTA CONTRASEÑA ACTUALIZADA (contrasena_actualizada.blade.php)
+   ============================================================ */
+
+html.dark-mode .main {
+  background: #2a2f3f;
+}
+
+html.dark-mode .card {
+  background: #3a4152;
+  border: 1px solid #4a5062;
+}
+
+html.dark-mode .card h2 {
+  color: #e6eef8;
+}
+
+html.dark-mode .card p {
+  color: #b8b8c8;
+}
+
+/* ============================================================
+   REQUISITOS DE CONTRASEÑA (register)
+   ============================================================ */
+
+html.dark-mode .password-requirements-tooltip .tooltip-content {
+  background: #3a4152;
+  border-color: #4a5062;
+  color: #e6eef8;
+}
+
+html.dark-mode .terms a {
+  color: #9fc3f5;
+}
+
+/* ============================================================
+   FOOTER GENÉRICO con ola (modulo, etc.)
+   El footer de ola azul permanece igual
+   ============================================================ */
+
+/* El .footer-container usa SVG de olas azules — sin cambio */
+
+/* ============================================================
+   ICONO TOGGLE TEMA
+   ============================================================ */
+
+/* El ícono de sol/luna en el header azul — sin cambio de filtro
+   Solo en headers blancos (perfil) se necesita ajuste */
+html.dark-mode .header .icono-tema {
+  /* Mantener visible sobre fondo oscuro */
+  opacity: 0.9;
+}
+
+html.dark-mode .icono-tema:hover {
+  opacity: 1;
+}

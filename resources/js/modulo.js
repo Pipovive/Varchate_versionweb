@@ -726,13 +726,16 @@ function renderizarLecciones(lecciones) {
             if (tipo === 'intro') {
                 console.log('Mostrando introducción');
                 leccionActualIndex = -1; // Sincronizar estado
+                document.getElementById('ejerciciosSeccion')?.remove();
                 mostrarIntroduccion();
             } else if (tipo === 'evaluacion') {
                 console.log('Cargando evaluación');
                 leccionActualIndex = window.leccionesOrdenadas?.length ?? 0; // Sincronizar estado
+                document.getElementById('ejerciciosSeccion')?.remove();
                 cargarEvaluacion(btn.dataset.evaluacionId);
             } else if (tipo === 'certificado') {
                 console.log('Mostrando certificado');
+                document.getElementById('ejerciciosSeccion')?.remove();
                 cargarCertificado(btn.dataset.moduloId);
             } else if (leccionSlug && moduloActual) {
                 console.log('Cargando lección:', leccionSlug);
@@ -741,6 +744,19 @@ function renderizarLecciones(lecciones) {
             }
         });
     });
+
+    // Auto-navegar a la evaluación o lección específica si viene en la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('seccion') === 'evaluacion') {
+        const evalBtn = document.querySelector('.sidebar button[data-tipo="evaluacion"]');
+        if (evalBtn && !evalBtn.classList.contains('locked')) {
+            // Eliminar parámetro de URL inmediatamente para no afectar recargas futuras
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Simular click después de un pequeño retraso para asegurar que el DOM esté listo
+            setTimeout(() => evalBtn.click(), 100);
+        }
+    }
 }
 
 // Función para mostrar mensaje de contenido bloqueado
@@ -996,6 +1012,9 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
     const token = localStorage.getItem('auth_token');
 
     mostrarSpinner(true);
+    // Limpiar sección de ejercicios previa (puede ser de otra lección)
+    document.getElementById('ejerciciosSeccion')?.remove();
+
 
     try {
         console.log('📖 Cargando lección:', { moduloSlug, leccionSlug });
@@ -1069,6 +1088,11 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
                 console.log('📍 Índice de lección actual:', indiceActual);
             }
 
+            // ===== EJERCICIOS: cargar y mostrar si la lección tiene =====
+            if (moduloActual && moduloActual.id) {
+                await cargarEjerciciosLeccion(moduloActual.id, leccion.id);
+            }
+
         } else {
             console.error('Error cargando lección:', response.status);
             const errorText = await response.text();
@@ -1081,6 +1105,330 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
     } finally {
         mostrarSpinner(false);
     }
+}
+
+// ===============================
+// EJERCICIOS INTERACTIVOS EN LECCIÓN
+// ===============================
+
+async function cargarEjerciciosLeccion(moduloId, leccionId) {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
+    try {
+        const url = `${apiUrl}/modulos/${moduloId}/lecciones/${leccionId}/ejercicios`;
+        console.log('🔍 Cargando ejercicios desde:', url);
+
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.warn('⚠️ Ejercicios HTTP error:', response.status);
+            return;
+        }
+
+        const json = await response.json();
+        console.log('📦 Respuesta ejercicios completa:', JSON.stringify(json));
+        const data = json?.data;
+
+        if (!data?.tiene_ejercicios || !data?.ejercicios?.length) {
+            console.log('ℹ️ Esta lección no tiene ejercicios');
+            return;
+        }
+
+        console.log(`✅ ${data.ejercicios.length} ejercicio(s) encontrado(s):`, data.ejercicios);
+        renderizarEjerciciosLeccion(data.ejercicios, moduloId, leccionId);
+
+    } catch (err) {
+        console.warn('No se pudieron cargar ejercicios:', err);
+    }
+}
+
+// Escapa texto para inserción segura en innerHTML
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
+    // Inyectamos en contentSection (FUERA de leccionContent) para evitar
+    // que los <style> del HTML de la lección sobreescriban nuestros estilos
+    const contentSection = document.getElementById('contentSection');
+    if (!contentSection) return;
+
+    // Eliminar sección previa si existe (al navegar entre lecciones)
+    document.getElementById('ejerciciosSeccion')?.remove();
+
+    // Estado por ejercicio: { respondido, correcto, seleccion, parejas }
+    const estados = ejercicios.map(() => ({
+        respondido: false,
+        correcto: null,
+        feedback: '',
+        opcionCorrecta: null,
+        seleccionId: null,
+        parejas: []
+    }));
+
+    let indexActual = 0;
+
+    // Sección principal
+    const seccion = document.createElement('div');
+    seccion.className = 'ejercicios-leccion-seccion';
+    seccion.id = 'ejerciciosSeccion';
+
+    // Insertar antes del btn-container (botón "Siguiente" de la lección)
+    const btnContainer = contentSection.querySelector('.btn-container');
+    if (btnContainer) {
+        contentSection.insertBefore(seccion, btnContainer);
+    } else {
+        contentSection.appendChild(seccion);
+    }
+
+
+    function buildOpcionesHTML(ej) {
+        const opciones = Array.isArray(ej.opciones) ? ej.opciones : [];
+        console.log(`🧩 buildOpcionesHTML tipo=${ej.tipo} opciones=${opciones.length}`, opciones);
+
+        if (ej.tipo === 'seleccion_multiple' || ej.tipo === 'verdadero_falso') {
+            if (!opciones.length) return '<p style="color:#e57373;font-size:13px;">⚠️ Sin opciones cargadas</p>';
+            return `<div class="ejercicio-opciones">
+                ${opciones.map(op => `
+                    <button class="ejercicio-opcion" data-opcion-id="${op.id}">${escapeHTML(op.texto)}</button>
+                `).join('')}
+            </div>`;
+        } else if (ej.tipo === 'arrastrar_soltar') {
+            if (!opciones.length) return '<p style="color:#e57373;font-size:13px;">⚠️ Sin opciones cargadas</p>';
+            const destinos = [...new Set(opciones.map(op => op.pareja_arrastre))];
+            return `
+                <div class="drag-drop-container">
+                    <div class="drag-items-col">
+                        <p class="drag-col-label">Elementos</p>
+                        ${opciones.map(op => `
+                            <div class="drag-item" draggable="true" data-opcion-id="${op.id}">${escapeHTML(op.texto)}</div>
+                        `).join('')}
+                    </div>
+                    <div class="drag-destinos-col">
+                        <p class="drag-col-label">Definiciones</p>
+                        ${destinos.map(dest => `
+                            <div class="drag-destino">
+                                <span class="drag-destino-label">${escapeHTML(dest)}</span>
+                                <div class="drag-zona" data-pareja="${escapeHTML(dest)}">Arrastra aquí</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+        }
+        return '';
+    }
+
+    function render() {
+        const ej = ejercicios[indexActual];
+        const est = estados[indexActual];
+
+        const respondido = est.respondido;
+        const correcto   = est.correcto;
+
+        seccion.innerHTML = `
+            <div class="ejercicios-leccion-header">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <div>
+                    <h3 class="ejercicios-leccion-titulo">Ejercicios de práctica</h3>
+                    <p class="ejercicios-leccion-subtitulo">Pon a prueba lo que aprendiste en esta lección</p>
+                </div>
+                <span class="ejercicios-leccion-badge">${indexActual + 1} / ${ejercicios.length}</span>
+            </div>
+
+            <div class="ejercicio-card ${respondido ? (correcto ? 'ejercicio-correcto' : 'ejercicio-incorrecto') : ''}">
+                <div class="ejercicio-card-header">
+                    <span class="ejercicio-num">Ejercicio ${indexActual + 1}</span>
+                    <span class="ejercicio-tipo-badge">${getTipoBadge(ej.tipo)}</span>
+                </div>
+                <p class="ejercicio-instrucciones">${escapeHTML(ej.instrucciones)}</p>
+                <p class="ejercicio-pregunta">${escapeHTML(ej.pregunta)}</p>
+                ${buildOpcionesHTML(ej)}
+                <div class="ejercicio-feedback" id="ejFeedback" style="${respondido ? 'display:block' : 'display:none'}">
+                    ${respondido ? (correcto
+                        ? `✅ ${escapeHTML(est.feedback)}`
+                        : `❌ ${escapeHTML(est.feedback)}${est.opcionCorrecta?.texto ? ` La respuesta correcta era: <strong>${escapeHTML(est.opcionCorrecta.texto)}</strong>` : ''}`)
+                        : ''}
+                </div>
+                ${respondido ? '' : `
+                <div class="ejercicio-acciones-check">
+                    <button class="ejercicio-btn-comprobar" id="btnComprobar">Comprobar</button>
+                </div>`}
+                ${(respondido && !correcto) ? `
+                <div class="ejercicio-acciones-check">
+                    <button class="ejercicio-btn-reintentar" id="btnReintentar">Reintentar</button>
+                </div>` : ''}
+            </div>
+
+            <div class="ejercicio-nav">
+                <button class="ejercicio-btn-nav" id="btnAnterior" ${indexActual === 0 ? 'disabled' : ''}>← Anterior</button>
+                <div class="ejercicio-dots">
+                    ${ejercicios.map((_, i) => `
+                        <span class="ej-dot ${estados[i].respondido ? (estados[i].correcto ? 'dot-correcto' : 'dot-incorrecto') : ''} ${i === indexActual ? 'dot-actual' : ''}"></span>
+                    `).join('')}
+                </div>
+                <button class="ejercicio-btn-nav" id="btnSiguiente" ${indexActual === ejercicios.length - 1 ? 'disabled' : ''}>Siguiente →</button>
+            </div>
+        `;
+
+        // Restaurar selección previa si ya respondió o había seleccionado
+        if (est.seleccionId && (ej.tipo === 'seleccion_multiple' || ej.tipo === 'verdadero_falso')) {
+            const prevBtn = seccion.querySelector(`[data-opcion-id="${est.seleccionId}"]`);
+            if (prevBtn) {
+                prevBtn.classList.add('selected');
+                if (respondido) prevBtn.disabled = true;
+            }
+            if (respondido) {
+                seccion.querySelectorAll('.ejercicio-opcion').forEach(b => b.disabled = true);
+            }
+        }
+
+        // Restaurar drag & drop si ya respondió
+        if (respondido && ej.tipo === 'arrastrar_soltar') {
+            seccion.querySelectorAll('.drag-item').forEach(i => i.setAttribute('draggable', 'false'));
+        }
+
+        // Feedback class
+        const feedbackEl = seccion.querySelector('#ejFeedback');
+        if (feedbackEl && respondido) {
+            feedbackEl.className = `ejercicio-feedback ${correcto ? 'feedback-correcto' : 'feedback-incorrecto'}`;
+        }
+
+        // Eventos
+        seccion.querySelector('#btnAnterior')?.addEventListener('click', () => {
+            if (indexActual > 0) { indexActual--; render(); }
+        });
+
+        seccion.querySelector('#btnSiguiente')?.addEventListener('click', () => {
+            if (indexActual < ejercicios.length - 1) { indexActual++; render(); }
+        });
+
+        // Selección de opciones
+        if (!respondido && (ej.tipo === 'seleccion_multiple' || ej.tipo === 'verdadero_falso')) {
+            seccion.querySelectorAll('.ejercicio-opcion').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    seccion.querySelectorAll('.ejercicio-opcion').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    estados[indexActual].seleccionId = parseInt(btn.dataset.opcionId);
+                });
+            });
+        }
+
+        // Drag & Drop
+        if (!respondido && ej.tipo === 'arrastrar_soltar') {
+            let draggedItem = null;
+            seccion.querySelectorAll('.drag-item').forEach(item => {
+                item.addEventListener('dragstart', () => { draggedItem = item; item.classList.add('dragging'); });
+                item.addEventListener('dragend',   () => { item.classList.remove('dragging'); });
+            });
+            seccion.querySelectorAll('.drag-zona').forEach(zona => {
+                zona.addEventListener('dragover',  e => { e.preventDefault(); zona.classList.add('drag-over'); });
+                zona.addEventListener('dragleave', () => zona.classList.remove('drag-over'));
+                zona.addEventListener('drop', e => {
+                    e.preventDefault();
+                    zona.classList.remove('drag-over');
+                    if (draggedItem) {
+                        const existing = zona.querySelector('.drag-item');
+                        if (existing) seccion.querySelector('.drag-items-col').appendChild(existing);
+                        zona.appendChild(draggedItem);
+                        draggedItem = null;
+                    }
+                });
+            });
+        }
+
+        // Comprobar
+        const btnComprobar = seccion.querySelector('#btnComprobar');
+        if (btnComprobar) {
+            btnComprobar.addEventListener('click', async () => {
+                const apiUrl  = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+                const token   = localStorage.getItem('auth_token');
+                const est     = estados[indexActual];
+                let body      = {};
+
+                if (ej.tipo === 'seleccion_multiple' || ej.tipo === 'verdadero_falso') {
+                    const selected = seccion.querySelector('.ejercicio-opcion.selected');
+                    if (!selected) {
+                        const fb = seccion.querySelector('#ejFeedback');
+                        fb.style.display = 'block';
+                        fb.className = 'ejercicio-feedback feedback-warning';
+                        fb.textContent = '⚠️ Selecciona una opción antes de comprobar';
+                        return;
+                    }
+                    body = { opcion_id: parseInt(selected.dataset.opcionId) };
+                } else if (ej.tipo === 'arrastrar_soltar') {
+                    const parejas = [];
+                    seccion.querySelectorAll('.drag-zona').forEach(zona => {
+                        const item = zona.querySelector('.drag-item');
+                        if (item) parejas.push({ id_opcion: parseInt(item.dataset.opcionId), pareja: zona.dataset.pareja });
+                    });
+                    if (!parejas.length) {
+                        const fb = seccion.querySelector('#ejFeedback');
+                        fb.style.display = 'block';
+                        fb.className = 'ejercicio-feedback feedback-warning';
+                        fb.textContent = '⚠️ Arrastra los elementos antes de comprobar';
+                        return;
+                    }
+                    body = { parejas };
+                }
+
+                btnComprobar.disabled = true;
+                btnComprobar.textContent = 'Comprobando...';
+
+                try {
+                    const resp   = await fetch(`${apiUrl}/modulos/${moduloId}/lecciones/${leccionId}/ejercicios/${ej.id}/intento`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const result = await resp.json();
+                    est.respondido    = true;
+                    est.correcto      = result?.data?.es_correcta;
+                    est.feedback      = result?.data?.feedback || '';
+                    est.opcionCorrecta= result?.data?.opcion_correcta || null;
+                    render();
+                } catch {
+                    btnComprobar.disabled = false;
+                    btnComprobar.textContent = 'Comprobar';
+                    const fb = seccion.querySelector('#ejFeedback');
+                    fb.style.display = 'block';
+                    fb.className = 'ejercicio-feedback feedback-warning';
+                    fb.textContent = '⚠️ Error de conexión. Inténtalo de nuevo.';
+                }
+            });
+        }
+
+        // Reintentar
+        const btnReintentar = seccion.querySelector('#btnReintentar');
+        if (btnReintentar) {
+            btnReintentar.addEventListener('click', () => {
+                estados[indexActual] = { respondido: false, correcto: null, feedback: '', opcionCorrecta: null, seleccionId: null, parejas: [] };
+                render();
+            });
+        }
+    }
+
+    render();
+}
+
+function getTipoBadge(tipo) {
+    const badges = {
+        'seleccion_multiple': '☑ Selección múltiple',
+        'verdadero_falso':    '✓/✗ Verdadero o Falso',
+        'arrastrar_soltar':   '⇄ Relacionar'
+    };
+    return badges[tipo] || tipo;
 }
 
 async function marcarLeccionVista(moduloId, leccionId, skipRender = false, mostrarMensaje = true) {
@@ -2767,13 +3115,11 @@ function _mostrarResultadoModal(data) {
         document.head.appendChild(st);
     }
 
-    // Botón cerrar
-    document.getElementById('eval-close-result-btn')?.addEventListener('click', async () => {
+    // Botón cerrar - Recarga la página para dejar limpia la sección y actualizar el progreso global
+    document.getElementById('eval-close-result-btn')?.addEventListener('click', () => {
         _cerrarModalEvaluacion();
-        if (moduloActual?.id) {
-            await cargarProgresoModulo(moduloActual.id);
-            cargarEvaluacion(moduloActual.id);
-        }
+        // Recargar la página actual conservando la URL, y añadiendo el parámetro para volver a la evaluación
+        window.location.href = window.location.pathname + '?seccion=evaluacion';
     });
 
     // Botón ver respuestas — muestra las respuestas del intento (futuro)

@@ -62,23 +62,22 @@ Route::middleware('auth')->group(function () {
         function () {
             return view('modulo');
         }
-    )->name('modulos');
+        )->name('modulos');
 
-    Route::get(
-        '/modulo/{slug}',
-        function ($slug) {
+        Route::get(
+            '/modulo/{slug}',
+            function ($slug) {
             return view('modulo', ['slug' => $slug]);
         }
-    )->name('modulo.detalle');
+        )->name('modulo.detalle');
 
-    // Perfil: protegido por sesión Laravel
-    Route::get(
-        '/perfil',
-        function () {
+        // Perfil: protegido por sesión Laravel
+        Route::get(
+            '/perfil',
+            function () {
             return view('perfil');
         }
-    )->name('perfil');
-});
+        )->name('perfil');    });
 
 // ===============================
 // API LOCAL PARA MANEJAR SESIÓN

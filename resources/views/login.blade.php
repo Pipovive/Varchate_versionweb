@@ -28,6 +28,7 @@
       <img src="{{ asset('images/logo_azul.png') }}" alt="Logo Varchate" class="logo">
       <div class="login-box">
         <h2>Iniciar sesión</h2>
+
         <form id="loginForm"
           data-api-url="{{ env('VITE_API_BASE_URL', 'http://localhost:8001/api') }}"
           data-session-url="{{ url('/api/set-session-token') }}"

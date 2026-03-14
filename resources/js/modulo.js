@@ -690,9 +690,9 @@ function renderizarLecciones(lecciones) {
         const claseCompletada = index < leccionesCompletadas ? 'completed' : '';
 
         lessonsHTML += `
-        <div class="lesson ${claseCompletada}" 
-             data-leccion-id="${leccion.id}" 
-             data-leccion-slug="${leccion.slug}" 
+        <div class="lesson ${claseCompletada}"
+             data-leccion-id="${leccion.id}"
+             data-leccion-slug="${leccion.slug}"
              data-leccion-index="${index}">
             <i class="fa-regular fa-file-lines"></i>
             <div>
@@ -711,8 +711,8 @@ function renderizarLecciones(lecciones) {
         : 'Pon a prueba tus conocimientos del módulo';
 
     lessonsHTML += `
-            <div class="lesson evaluation ${evaluacionAprobada ? 'completed' : ''}" 
-                data-tipo="evaluacion" 
+            <div class="lesson evaluation ${evaluacionAprobada ? 'completed' : ''}"
+                data-tipo="evaluacion"
                 data-evaluacion-id="${moduloActual?.id || 1}">
                 <i class="fa-regular fa-file-lines"></i>
                 <div>
@@ -724,8 +724,8 @@ function renderizarLecciones(lecciones) {
 
     // Agregar certificado (SOLO VISUAL)
     lessonsHTML += `
-            <div class="lesson certificado ${evaluacionAprobada ? 'completed' : 'locked-lesson'}" 
-                data-tipo="certificado" 
+            <div class="lesson certificado ${evaluacionAprobada ? 'completed' : 'locked-lesson'}"
+                data-tipo="certificado"
                 data-modulo-id="${moduloActual?.id || 1}">
                 <i class="fa-solid fa-certificate"></i>
                 <div>
@@ -941,7 +941,7 @@ if (!document.getElementById('animation-styles')) {
             color: #616461 !important;
             cursor: not-allowed !important;
         }
-        
+
         /* Botón de INTRODUCCIÓN ACTIVO */
         .sidebar button[data-tipo="intro"].active {
             background-color: #0099FF !important;
@@ -970,7 +970,7 @@ if (!document.getElementById('animation-styles')) {
             color: #FFFFFF !important;
             border-left: none; /* Quitamos el borde cuando está activo */
         }
-        
+
         /* Botón ACTIVO que además es VISTO - prevalece el azul */
         .sidebar button.active.vista {
             background-color: #0099FF !important;
@@ -981,7 +981,7 @@ if (!document.getElementById('animation-styles')) {
             background-color: #f0fff0;
             border-color: #4caf50;
         }
-      
+
         .lessons .lesson.evaluation.locked,
         .lessons .lesson.certificado.locked-lesson {
             opacity: 0.6;
@@ -1692,7 +1692,7 @@ function renderizarPantallaCertificado(cert, moduloId, apiUrl) {
                     <p style="color: #666; font-size: 1.2rem;">Este certificado valida que completaste el módulo y adquiriste los conocimiento básicos necesarios para continuar tu aprendizaje en programación</p>
                     <p style="color: #666; font-size: 1.2rem;">¡Sigue avanzando y desbloquea nuevos retos!</p>
                     ${fecha ? `<p style="color:#888; font-size:1rem;">Emitido el ${fecha}</p>` : ''}
-                    
+
                     <!-- Imagen del gato centrada -->
                     <div style="display: flex; justify-content: center; margin: 24px 0 8px;">
                         <img src="${imagesBase}/gato-certificados.png" alt="Gato con certificado" style="width: 180px; height: auto; border-radius: 12px;">
@@ -1724,7 +1724,7 @@ function renderizarPantallaCertificado(cert, moduloId, apiUrl) {
                     <span style="font-size: 80px; display: block; margin-bottom: 16px;">📜</span>
                     <h2 style="font-size: 1.6rem; color: var(--color-text, #1a1a2e); margin-bottom: 8px;">Tu certificado te espera</h2>
                     <p style="color: #666; font-size: 1rem;">Has aprobado la evaluación de <strong>${moduloTitulo}</strong>. ¡Genera tu certificado ahora!</p>
-                    
+
                     <!-- Imagen del gato centrada -->
                     <div style="display: flex; justify-content: center; margin: 24px 0 8px;">
                         <img src="${imagesBase}/gato-certificados.png" alt="Gato con certificado" style="width: 180px; height: auto; border-radius: 12px;">
@@ -1852,7 +1852,7 @@ async function verCertificado(codigo) {
     const apiUrl = mainEl?.dataset.apiUrl || 'http://localhost:8001/api';
     const token = localStorage.getItem('auth_token');
 
-    // Abrir en nueva pestaña con fetch no es práctico, 
+    // Abrir en nueva pestaña con fetch no es práctico,
     // así que usamos una ventana nueva con el token en la URL
     const ventana = window.open('', '_blank');
 
@@ -3084,13 +3084,13 @@ function _mostrarResultadoModal(data) {
             .eval-result-score-title { font-size: 1.4rem; font-weight: 900; color: #1a1a2e; margin-bottom: 5px; }
             .eval-result-footer { display: flex; justify-content: space-between; padding: 25px 40px; border-top: 1px solid rgba(0,0,0,0.07); }
             .eval-result-btn-primary, .eval-result-btn-secondary {
-                background: #0099FF; color: #fff; border: none; border-radius: 30px; 
-                padding: 12px 32px; font-size: 1rem; font-weight: 700; cursor: pointer; 
+                background: #0099FF; color: #fff; border: none; border-radius: 30px;
+                padding: 12px 32px; font-size: 1rem; font-weight: 700; cursor: pointer;
                 transition: all 0.2s;
             }
             .eval-result-btn-primary:hover, .eval-result-btn-secondary:hover { background: #007acc; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,153,255,0.3); }
             .eval-result-btn-primary:active, .eval-result-btn-secondary:active { transform: translateY(0); }
-            
+
             /* Revision Styles */
             .eval-revision-container { display: flex; flex-direction: column; height: 500px; width: 100%; background: #fff; border-radius: 18px; overflow: hidden; }
             .eval-revision-header { padding: 20px; background: #D9EEFF; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cce4f7; }
@@ -3173,3 +3173,100 @@ async function _mostrarRevisionRespuestas(intentoId, originalData) {
         mostrarSpinner(false);
     }
 }
+
+// ===== MODAL DE RANKING =====
+(function () {
+  const btnRanking   = document.getElementById('btn-ranking');
+  const overlay      = document.getElementById('ranking-modal-overlay');
+  const btnClose     = document.getElementById('ranking-modal-close');
+  const skeleton     = document.getElementById('ranking-skeleton');
+  const lista        = document.getElementById('ranking-lista');
+  const subtitulo    = document.getElementById('ranking-modal-subtitulo');
+  const totalSpan    = document.getElementById('ranking-total-participantes');
+  const actualizadoSpan = document.getElementById('ranking-actualizado');
+
+  if (!btnRanking || !overlay) return; // seguridad si el modal no existe
+
+  // Abrir modal
+  btnRanking.addEventListener('click', function (e) {
+    e.preventDefault();
+    overlay.style.display = 'flex';
+    cargarRanking();
+  });
+
+  // Cerrar modal
+  btnClose.addEventListener('click', () => overlay.style.display = 'none');
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) overlay.style.display = 'none';
+  });
+
+  function cargarRanking() {
+    // Mostrar skeleton, ocultar lista
+    skeleton.style.display = 'flex';
+    lista.style.display    = 'none';
+    lista.innerHTML        = '';
+
+    // Obtener moduloId del DOM (ajusta el selector si es diferente)
+    const moduloId = document.querySelector('[data-modulo-id]')?.dataset?.moduloId
+                  || window.moduloId
+                  || null;
+
+    const apiBase = document.querySelector('[data-api-url]')?.dataset?.apiUrl
+                 || 'http://localhost:8001/api';
+
+    const url = moduloId
+      ? `${apiBase}/modulos/${moduloId}/ranking`
+      : `${apiBase}/ranking`;
+
+    fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+      }
+    })
+      .then(r => r.json())
+      .then(data => renderRanking(data))
+      .catch(() => {
+        lista.innerHTML = '<p style="text-align:center;color:#aaa;">No se pudo cargar el ranking.</p>';
+        skeleton.style.display = 'none';
+        lista.style.display    = 'flex';
+      });
+  }
+
+  function renderRanking(data) {
+    skeleton.style.display = 'none';
+    lista.style.display    = 'flex';
+
+    // Ajusta según la estructura real de tu API
+    const items = Array.isArray(data) ? data : (data.data || data.ranking || []);
+
+    if (items.length === 0) {
+      lista.innerHTML = '<p style="text-align:center;color:#aaa;">Aún no hay participantes.</p>';
+      return;
+    }
+
+    totalSpan.textContent       = `${items.length} participantes`;
+    actualizadoSpan.textContent = 'Actualizado ahora';
+
+    items.forEach((user, index) => {
+      const medallas = ['🥇','🥈','🥉'];
+      const pos      = medallas[index] || `${index + 1}.`;
+      const nombre   = user.nombre || user.name || 'Usuario';
+      const puntos   = user.puntos ?? user.score ?? user.puntaje ?? '';
+
+      const row = document.createElement('div');
+      row.className = 'ranking-row';
+      row.style.cssText = `
+        display:flex; align-items:center; gap:12px;
+        background:#f9f9f9; border-radius:12px; padding:10px 14px;
+      `;
+      row.innerHTML = `
+        <span style="font-size:1.3rem; width:28px; text-align:center;">${pos}</span>
+        <span style="flex:1; font-weight:600; color:#333;">${nombre}</span>
+        ${puntos !== '' ? `<span style="font-size:0.85rem; color:#888;">${puntos} pts</span>` : ''}
+      `;
+      lista.appendChild(row);
+    });
+  }
+})();
+// ===== FIN MODAL DE RANKING =====

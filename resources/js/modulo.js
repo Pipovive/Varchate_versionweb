@@ -3174,99 +3174,207 @@ async function _mostrarRevisionRespuestas(intentoId, originalData) {
     }
 }
 
-// ===== MODAL DE RANKING =====
-(function () {
-  const btnRanking   = document.getElementById('btn-ranking');
-  const overlay      = document.getElementById('ranking-modal-overlay');
-  const btnClose     = document.getElementById('ranking-modal-close');
-  const skeleton     = document.getElementById('ranking-skeleton');
-  const lista        = document.getElementById('ranking-lista');
-  const subtitulo    = document.getElementById('ranking-modal-subtitulo');
-  const totalSpan    = document.getElementById('ranking-total-participantes');
-  const actualizadoSpan = document.getElementById('ranking-actualizado');
 
-  if (!btnRanking || !overlay) return; // seguridad si el modal no existe
+// ===============================
+// MODAL DE RANKING - TOP 5
+// ===============================
 
-  // Abrir modal
-  btnRanking.addEventListener('click', function (e) {
-    e.preventDefault();
-    overlay.style.display = 'flex';
-    cargarRanking();
-  });
+(function iniciarRankingModal() {
+    const overlay   = document.getElementById('ranking-modal-overlay');
+    const btnRanking = document.getElementById('btn-ranking');
+    const btnClose  = document.getElementById('ranking-modal-close');
 
-  // Cerrar modal
-  btnClose.addEventListener('click', () => overlay.style.display = 'none');
-  overlay.addEventListener('click', function (e) {
-    if (e.target === overlay) overlay.style.display = 'none';
-  });
+    if (!overlay || !btnRanking) return;
 
-  function cargarRanking() {
+    // Abrir modal
+    btnRanking.addEventListener('click', (e) => {
+        e.preventDefault();
+        abrirRankingModal();
+    });
+
+    // Cerrar con X
+    btnClose?.addEventListener('click', cerrarRankingModal);
+
+    // Cerrar al hacer click en el overlay fuera del modal
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) cerrarRankingModal();
+    });
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay.style.display === 'flex') cerrarRankingModal();
+    });
+})();
+
+function abrirRankingModal() {
+    const overlay = document.getElementById('ranking-modal-overlay');
+    if (!overlay) return;
+
     // Mostrar skeleton, ocultar lista
-    skeleton.style.display = 'flex';
-    lista.style.display    = 'none';
-    lista.innerHTML        = '';
+    document.getElementById('ranking-skeleton').style.display = 'flex';
+    document.getElementById('ranking-lista').style.display    = 'none';
+    document.getElementById('ranking-modal-footer').style.display = 'none';
+    document.getElementById('ranking-modal-subtitulo').textContent = '';
 
-    // Obtener moduloId del DOM (ajusta el selector si es diferente)
-    const moduloId = document.querySelector('[data-modulo-id]')?.dataset?.moduloId
-                  || window.moduloId
-                  || null;
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
 
-    const apiBase = document.querySelector('[data-api-url]')?.dataset?.apiUrl
-                 || 'http://localhost:8001/api';
+    cargarRankingTop5();
+}
 
-    const url = moduloId
-      ? `${apiBase}/modulos/${moduloId}/ranking`
-      : `${apiBase}/ranking`;
+function cerrarRankingModal() {
+    const overlay = document.getElementById('ranking-modal-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+}
 
-    fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
-      }
-    })
-      .then(r => r.json())
-      .then(data => renderRanking(data))
-      .catch(() => {
-        lista.innerHTML = '<p style="text-align:center;color:#aaa;">No se pudo cargar el ranking.</p>';
-        skeleton.style.display = 'none';
-        lista.style.display    = 'flex';
-      });
-  }
+async function cargarRankingTop5() {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+    const token  = localStorage.getItem('auth_token');
 
-  function renderRanking(data) {
-    skeleton.style.display = 'none';
-    lista.style.display    = 'flex';
-
-    // Ajusta según la estructura real de tu API
-    const items = Array.isArray(data) ? data : (data.data || data.ranking || []);
-
-    if (items.length === 0) {
-      lista.innerHTML = '<p style="text-align:center;color:#aaa;">Aún no hay participantes.</p>';
-      return;
+    if (!moduloActual?.id) {
+        renderRankingError('No se pudo identificar el módulo.');
+        return;
     }
 
-    totalSpan.textContent       = `${items.length} participantes`;
-    actualizadoSpan.textContent = 'Actualizado ahora';
+    try {
+        const response = await fetch(`${apiUrl}/ranking/modulo/${moduloActual.id}/top5`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
+        });
 
-    items.forEach((user, index) => {
-      const medallas = ['🥇','🥈','🥉'];
-      const pos      = medallas[index] || `${index + 1}.`;
-      const nombre   = user.nombre || user.name || 'Usuario';
-      const puntos   = user.puntos ?? user.score ?? user.puntaje ?? '';
+        if (!response.ok) throw new Error('Error al cargar ranking');
 
-      const row = document.createElement('div');
-      row.className = 'ranking-row';
-      row.style.cssText = `
-        display:flex; align-items:center; gap:12px;
-        background:#f9f9f9; border-radius:12px; padding:10px 14px;
-      `;
-      row.innerHTML = `
-        <span style="font-size:1.3rem; width:28px; text-align:center;">${pos}</span>
-        <span style="flex:1; font-weight:600; color:#333;">${nombre}</span>
-        ${puntos !== '' ? `<span style="font-size:0.85rem; color:#888;">${puntos} pts</span>` : ''}
-      `;
-      lista.appendChild(row);
-    });
-  }
-})();
-// ===== FIN MODAL DE RANKING =====
+        const json = await response.json();
+        if (!json.success) throw new Error(json.message || 'Error');
+
+        renderRankingTop5(json.data);
+
+    } catch (err) {
+        console.error('Error cargando ranking:', err);
+        renderRankingError('No se pudo cargar el ranking. Intenta de nuevo.');
+    }
+}
+
+function renderRankingTop5(data) {
+    const lista    = document.getElementById('ranking-lista');
+    const skeleton = document.getElementById('ranking-skeleton');
+    const footer   = document.getElementById('ranking-modal-footer');
+    const subtitulo = document.getElementById('ranking-modal-subtitulo');
+
+    const top5 = data.top_5 || [];
+    const stats = data.estadisticas || {};
+    const modulo = data.modulo || {};
+
+    subtitulo.textContent = modulo.titulo || '';
+
+    // Colores y estilos por posición
+    const estilos = {
+        1: { bg: 'linear-gradient(135deg,#FFF7DC,#FFF3C0)', border: '#C9A227', numBg: '#C9A227', numColor: '#fff' },
+        2: { bg: 'linear-gradient(135deg,#F4F4F4,#E8E8E8)', border: '#9E9E9E', numBg: '#9E9E9E', numColor: '#fff' },
+        3: { bg: 'linear-gradient(135deg,#FFF0E5,#FFE3CC)', border: '#CD7F32', numBg: '#CD7F32', numColor: '#fff' },
+    };
+    const defaultEstilo = { bg: 'var(--color-surface-2, #f9fafb)', border: '#e5e7eb', numBg: '#e5e7eb', numColor: '#374151' };
+
+    if (top5.length === 0) {
+        lista.innerHTML = `
+            <div style="text-align:center; padding:32px 16px; color: var(--color-text-muted,#6b7280);">
+                <span style="font-size:3rem; display:block; margin-bottom:12px;">🏁</span>
+                <p style="font-size:1rem; margin:0;">Aún no hay participantes en este módulo.</p>
+                <p style="font-size:0.85rem; margin-top:6px;">¡Sé el primero en aparecer aquí!</p>
+            </div>`;
+    } else {
+        lista.innerHTML = top5.map((item, idx) => {
+            const pos     = item.posicion || (idx + 1);
+            const estilo  = estilos[pos] || defaultEstilo;
+            const nombre  = item.usuario?.nombre || 'Usuario';
+            const iniciales = item.usuario?.iniciales || nombre.substring(0, 2).toUpperCase();
+            const medalla = item.medalla?.icono || '⭐';
+            const pct     = item.progreso?.porcentaje ?? item.porcentaje ?? 0;
+            const completado = item.progreso?.completado ?? item.completado ?? false;
+
+            const barColor = completado ? '#22c55e' : (pos === 1 ? '#C9A227' : '#0099FF');
+
+            return `
+                <div class="ranking-row" style="
+                    display: flex; align-items: center; gap: 14px;
+                    padding: 12px 14px;
+                    border-radius: 12px;
+                    border: 1.5px solid ${estilo.border};
+                    background: ${estilo.bg};
+                ">
+                    <!-- Posición -->
+                    <div style="
+                        min-width: 34px; height: 34px; border-radius: 50%;
+                        background: ${estilo.numBg}; color: ${estilo.numColor};
+                        display: flex; align-items: center; justify-content: center;
+                        font-weight: 800; font-size: 1rem;
+                    ">${pos <= 3 ? medalla : pos}</div>
+
+                    <!-- Avatar iniciales -->
+                    <div style="
+                        min-width: 40px; height: 40px; border-radius: 50%;
+                        background: #0099FF22; color: #0060cc;
+                        display: flex; align-items: center; justify-content: center;
+                        font-weight: 700; font-size: 0.9rem; letter-spacing: .5px;
+                        border: 2px solid #0099FF33;
+                    ">${iniciales}</div>
+
+                    <!-- Nombre + barra -->
+                    <div style="flex:1; min-width:0;">
+                        <div style="
+                            font-weight: 600; font-size: 0.92rem;
+                            color: var(--color-text, #1a1a2e);
+                            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                            margin-bottom: 5px;
+                        ">${nombre}</div>
+                        <div style="background:#e5e7eb; border-radius:99px; height:6px; overflow:hidden;">
+                            <div style="
+                                width: ${Math.min(pct, 100)}%;
+                                height: 100%;
+                                background: ${barColor};
+                                border-radius: 99px;
+                                transition: width .6s ease;
+                            "></div>
+                        </div>
+                    </div>
+
+                    <!-- Porcentaje -->
+                    <div style="
+                        font-size: 0.95rem; font-weight: 700;
+                        color: ${completado ? '#16a34a' : 'var(--color-text, #374151)'};
+                        min-width: 42px; text-align: right;
+                    ">${Math.round(pct)}%</div>
+                </div>`;
+        }).join('');
+    }
+
+    // Stats footer
+    if (stats.total_participantes !== undefined) {
+        document.getElementById('ranking-total-participantes').textContent =
+            `👥 ${stats.total_participantes} participante${stats.total_participantes !== 1 ? 's' : ''}`;
+        document.getElementById('ranking-actualizado').textContent =
+            `Actualizado: ${stats.actualizado || ''}`;
+        footer.style.display = 'flex';
+    }
+
+    skeleton.style.display = 'none';
+    lista.style.display    = 'flex';
+}
+
+function renderRankingError(mensaje) {
+    const skeleton = document.getElementById('ranking-skeleton');
+    const lista    = document.getElementById('ranking-lista');
+
+    lista.innerHTML = `
+        <div style="text-align:center; padding:28px 16px; color:#ef4444;">
+            <span style="font-size:2.5rem; display:block; margin-bottom:10px;">⚠️</span>
+            <p style="margin:0; font-size:0.95rem;">${mensaje}</p>
+        </div>`;
+
+    skeleton.style.display = 'none';
+    lista.style.display    = 'flex';
+}

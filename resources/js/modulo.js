@@ -355,27 +355,44 @@ function actualizarIntroduccionModulo() {
     parrafosExistentes.forEach(p => p.remove());
 
     if (moduloActual.descripcion_larga) {
-        // Dividir por saltos de línea (\n)
-        const parrafos = moduloActual.descripcion_larga.split('\n');
+        // Verificar si la descripción ya contiene etiquetas HTML
+        const tieneHTML = /<[a-z][\s\S]*>/i.test(moduloActual.descripcion_larga);
 
-        // Variable para mantener referencia al último elemento insertado
-        let ultimoElemento = introHeader;
+        if (tieneHTML) {
+            // Si tiene HTML, lo insertamos directamente
+            const div = document.createElement('div');
+            div.innerHTML = moduloActual.descripcion_larga;
+            div.style.marginBottom = '20px';
+            div.style.lineHeight = '1.8';
+            div.style.fontSize = '16px';
+            div.style.textAlign = 'justify';
+            
+            // Aseguramos que los párrafos dentro de la descripción también tengan estilo si es necesario
+            div.querySelectorAll('p').forEach(p => {
+                if (!p.style.marginBottom) p.style.marginBottom = '15px';
+            });
 
-        // Crear un párrafo por cada línea no vacía (en orden)
-        parrafos.forEach(parrafo => {
-            if (parrafo.trim().length > 0) {
-                const p = document.createElement('p');
-                p.textContent = parrafo.trim();
-                p.style.marginBottom = '20px';
-                p.style.lineHeight = '1.8';
-                p.style.fontSize = '16px';
-                p.style.textAlign = 'justify';
+            introHeader.insertAdjacentElement('afterend', div);
+        } else {
+            // Si es texto plano, mantenemos la lógica de dividir por saltos de línea para crear párrafos
+            const parrafos = moduloActual.descripcion_larga.split('\n');
+            let ultimoElemento = introHeader;
 
-                // Insertar después del último elemento que insertamos
-                ultimoElemento.insertAdjacentElement('afterend', p);
-                ultimoElemento = p; // Actualizar la referencia
-            }
-        });
+            parrafos.forEach(parrafo => {
+                const trimmed = parrafo.trim();
+                if (trimmed.length > 0) {
+                    const p = document.createElement('p');
+                    p.textContent = trimmed;
+                    p.style.marginBottom = '20px';
+                    p.style.lineHeight = '1.8';
+                    p.style.fontSize = '16px';
+                    p.style.textAlign = 'justify';
+
+                    ultimoElemento.insertAdjacentElement('afterend', p);
+                    ultimoElemento = p;
+                }
+            });
+        }
     }
 
     // Asegurar que el título "Contenido" y las lecciones estén después
@@ -1014,16 +1031,14 @@ if (!document.getElementById('animation-styles')) {
 function limpiarContenidoHTML(html) {
     if (!html) return '<p>Contenido no disponible</p>';
 
-    let contenidoLimpio = html;
-
-    // Extraer contenido del body (pero conservar estilos)
-    const bodyRegex = /<body[^>]*>([\s\S]*?)<\/body>/i;
-    const bodyMatch = contenidoLimpio.match(bodyRegex);
-    if (bodyMatch && bodyMatch[1]) {
-        contenidoLimpio = bodyMatch[1];
+    // Si no parece tener etiquetas HTML complejas (html/head/body), devolver tal cual
+    if (!/<(html|head|body)/i.test(html)) {
+        return html;
     }
 
-    // Extraer estilos del head y agregarlos al contenido
+    let contenidoLimpio = '';
+
+    // Extraer estilos del head o de cualquier parte
     const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
     let styles = '';
     let styleMatch;
@@ -1031,20 +1046,20 @@ function limpiarContenidoHTML(html) {
         styles += styleMatch[0];
     }
 
-    // Si hay estilos, agregarlos al principio del contenido
-    if (styles) {
-        contenidoLimpio = styles + contenidoLimpio;
+    // Extraer el contenido del body
+    const bodyRegex = /<body[^>]*>([\s\S]*?)<\/body>/i;
+    const bodyMatch = html.match(bodyRegex);
+    
+    if (bodyMatch && bodyMatch[1]) {
+        contenidoLimpio = bodyMatch[1];
+    } else {
+        // Si no hay body, pero hay etiquetas html, intentamos limpiar lo que no sea head/style
+        contenidoLimpio = html.replace(/<head[\s\S]*?<\/head>/gi, '');
+        contenidoLimpio = contenidoLimpio.replace(/<\/?(html|body)[^>]*>/gi, '');
     }
 
-    // Eliminar metadatos y doctype (no afectan estilos)
-    contenidoLimpio = contenidoLimpio.replace(/<meta[^>]*>/gi, '');
-    contenidoLimpio = contenidoLimpio.replace(/<!DOCTYPE[^>]*>/i, '');
-
-    // Eliminar etiquetas html y head vacías
-    contenidoLimpio = contenidoLimpio.replace(/<\/?html[^>]*>/gi, '');
-    contenidoLimpio = contenidoLimpio.replace(/<\/?head[^>]*>/gi, '');
-
-    return contenidoLimpio;
+    // Combinar estilos y contenido
+    return styles + contenidoLimpio;
 }
 
 function mostrarContenidoNoDisponible() {
@@ -1222,6 +1237,35 @@ function escapeHTML(str) {
         .replace(/'/g, '&#39;');
 }
 
+/**
+ * Renderiza contenido de forma inteligente:
+ * Escapa etiquetas que parecen código (ej. <html>) pero permite etiquetas de estilo (ej. <b>).
+ */
+function renderSmartContent(str) {
+    if (!str) return '';
+    
+    // 1. Escapar todo primero para seguridad y visibilidad base
+    let escaped = str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // 2. Restaurar etiquetas de estilo permitidas
+    const whitelist = ['b', 'strong', 'i', 'em', 'u', 'span', 'br', 'p', 'code', 'pre'];
+    
+    whitelist.forEach(tag => {
+        // Apertura: &lt;b&gt; o &lt;b style="..."&gt;
+        const openRegex = new RegExp(`&lt;(${tag})(\\s+[^&]*)?&gt;`, 'gi');
+        escaped = escaped.replace(openRegex, `<$1$2>`);
+        
+        // Cierre: &lt;/b&gt;
+        const closeRegex = new RegExp(`&lt;/(${tag})&gt;`, 'gi');
+        escaped = escaped.replace(closeRegex, `</$1>`);
+    });
+
+    return escaped;
+}
+
 function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
     // Inyectamos en contentSection (FUERA de leccionContent) para evitar
     // que los <style> del HTML de la lección sobreescriban nuestros estilos
@@ -1265,7 +1309,7 @@ function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
             if (!opciones.length) return '<p style="color:#e57373;font-size:13px;">⚠️ Sin opciones cargadas</p>';
             return `<div class="ejercicio-opciones">
                 ${opciones.map(op => `
-                    <button class="ejercicio-opcion" data-opcion-id="${op.id}">${escapeHTML(op.texto)}</button>
+                    <button class="ejercicio-opcion" data-opcion-id="${op.id}">${renderSmartContent(op.texto)}</button>
                 `).join('')}
             </div>`;
         } else if (ej.tipo === 'arrastrar_soltar') {
@@ -1276,15 +1320,15 @@ function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
                     <div class="drag-items-col">
                         <p class="drag-col-label">Elementos</p>
                         ${opciones.map(op => `
-                            <div class="drag-item" draggable="true" data-opcion-id="${op.id}">${escapeHTML(op.texto)}</div>
+                             <div class="drag-item" draggable="true" data-opcion-id="${op.id}">${renderSmartContent(op.texto)}</div>
                         `).join('')}
                     </div>
                     <div class="drag-destinos-col">
                         <p class="drag-col-label">Definiciones</p>
                         ${destinos.map(dest => `
                             <div class="drag-destino">
-                                <span class="drag-destino-label">${escapeHTML(dest)}</span>
-                                <div class="drag-zona" data-pareja="${escapeHTML(dest)}">Arrastra aquí</div>
+                                <span class="drag-destino-label">${renderSmartContent(dest)}</span>
+                                <div class="drag-zona" data-pareja="${dest}">Arrastra aquí</div>
                             </div>
                         `).join('')}
                     </div>
@@ -1315,13 +1359,13 @@ function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
                     <span class="ejercicio-num">Ejercicio ${indexActual + 1}</span>
                     <span class="ejercicio-tipo-badge">${getTipoBadge(ej.tipo)}</span>
                 </div>
-                <p class="ejercicio-instrucciones">${escapeHTML(ej.instrucciones)}</p>
-                <p class="ejercicio-pregunta">${escapeHTML(ej.pregunta)}</p>
+                <p class="ejercicio-instrucciones">${renderSmartContent(ej.instrucciones)}</p>
+                <p class="ejercicio-pregunta">${renderSmartContent(ej.pregunta)}</p>
                 ${buildOpcionesHTML(ej)}
                 <div class="ejercicio-feedback" id="ejFeedback" style="${respondido ? 'display:block' : 'display:none'}">
                     ${respondido ? (correcto
-                ? `✅ ${escapeHTML(est.feedback)}`
-                : `❌ ${escapeHTML(est.feedback)}${est.opcionCorrecta?.texto ? ` La respuesta correcta era: <strong>${escapeHTML(est.opcionCorrecta.texto)}</strong>` : ''}`)
+                ? `✅ ${renderSmartContent(est.feedback)}`
+                : `❌ ${renderSmartContent(est.feedback)}${est.opcionCorrecta?.texto ? ` La respuesta correcta era: <strong>${renderSmartContent(est.opcionCorrecta.texto)}</strong>` : ''}`)
                 : ''}
                 </div>
                 ${respondido ? '' : `
@@ -1918,7 +1962,7 @@ function renderizarEvaluacion(json) {
     // Descripción arriba del grid
     let infoLines = '';
     if (descripcion) {
-        infoLines += `<p class="eval-info-line eval-desc">${descripcion}</p>`;
+        infoLines += `<div class="eval-info-line eval-desc">${descripcion}</div>`;
     }
 
     // Grid de estadísticas con tarjetas visuales
@@ -2757,10 +2801,10 @@ function _renderizarPreguntaModal(indice) {
     if (counterEl) counterEl.textContent = `Pregunta ${indice + 1} de ${preguntas.length}`;
 
     const instrEl = document.getElementById('eval-modal-instrucciones');
-    if (instrEl) instrEl.textContent = pregunta.instrucciones || '';
+    if (instrEl) instrEl.innerHTML = renderSmartContent(pregunta.instrucciones);
 
     const questionEl = document.getElementById('eval-modal-question');
-    if (questionEl) questionEl.textContent = pregunta.pregunta;
+    if (questionEl) questionEl.innerHTML = renderSmartContent(pregunta.pregunta);
 
     const optionsEl = document.getElementById('eval-modal-options');
     if (!optionsEl) return;
@@ -2818,7 +2862,9 @@ function _renderOpcionesMultiple(container, pregunta, bloqueada) {
         });
 
         label.appendChild(radio);
-        label.appendChild(document.createTextNode(opcion.texto));
+        const textoSpan = document.createElement('span');
+        textoSpan.innerHTML = renderSmartContent(opcion.texto);
+        label.appendChild(textoSpan);
         container.appendChild(label);
     });
 }
@@ -2841,7 +2887,7 @@ function _renderDragAndDrop(container, pregunta, bloqueada) {
     opciones.forEach(opcion => {
         const chip = document.createElement('div');
         chip.className = 'eval-draggable';
-        chip.textContent = opcion.texto;
+        chip.innerHTML = renderSmartContent(opcion.texto);
         chip.draggable = !bloqueada;
         chip.dataset.opcionId = opcion.id;
 
@@ -2858,7 +2904,7 @@ function _renderDragAndDrop(container, pregunta, bloqueada) {
 
         const labelTexto = document.createElement('span');
         labelTexto.className = 'eval-drop-label';
-        labelTexto.textContent = opcion.pareja_arrastre || '?';
+        labelTexto.innerHTML = renderSmartContent(opcion.pareja_arrastre);
 
         const blank = document.createElement('div');
         blank.className = 'eval-blank';
@@ -3151,14 +3197,14 @@ async function _mostrarRevisionRespuestas(intentoId, originalData) {
                     <div class="eval-revision-list">
                         ${respuestas.map((r, i) => `
                             <div class="eval-revision-item ${r.respuesta_usuario.es_correcta ? 'correct' : 'incorrect'}">
-                                <div class="eval-revision-question">${i + 1}. ${escapeHTML(r.pregunta_texto)}</div>
+                                <div class="eval-revision-question">${i + 1}. ${renderSmartContent(r.pregunta_texto)}</div>
                                 <div class="eval-revision-user-ans">
-                                    <strong>Tu respuesta:</strong> ${escapeHTML(r.respuesta_usuario.opcion_texto || r.respuesta_usuario.respuesta_texto || '(Sin respuesta)')}
+                                    <strong>Tu respuesta:</strong> ${renderSmartContent(r.respuesta_usuario.opcion_texto || r.respuesta_usuario.respuesta_texto || '(Sin respuesta)')}
                                     ${r.respuesta_usuario.es_correcta ? ' ✅' : ' ❌'}
                                 </div>
                                 ${!r.respuesta_usuario.es_correcta && r.respuesta_correcta ? `
                                     <div class="eval-revision-correct-ans">
-                                        <strong>Respuesta correcta:</strong> ${escapeHTML(r.respuesta_correcta.texto)}
+                                        <strong>Respuesta correcta:</strong> ${renderSmartContent(r.respuesta_correcta.texto)}
                                     </div>
                                 ` : ''}
                             </div>

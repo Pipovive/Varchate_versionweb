@@ -89,12 +89,19 @@ document.getElementById('recoveryForm').addEventListener('submit', async (e) => 
         if (response.ok) {
             sessionStorage.setItem('recoveryEmail', email);
             showModal('✅ ¡Correo enviado con éxito! Revisa tu bandeja de entrada.', 'success', '/enlace');
+        } else if (response.status === 404) {
+            // Mensaje de seguridad si el correo no existe
+            showModal('ℹ️ Si el correo está registrado, recibirá un enlace de recuperación.', 'info');
+        } else if (response.status === 429) {
+            // Error de demasiadas peticiones (Rate Limit)
+            showModal('⏳ Demasiados intentos. Por favor, espera un momento antes de intentar de nuevo.', 'warning');
         } else {
-            showModal('❌ Error: ' + (data.message || 'No se pudo enviar el correo'), 'error');
+            // Otros errores (servidor, sintaxis, etc.)
+            showModal('❌ No se pudo enviar el correo', 'error');
         }
     } catch (error) {
         console.error('Error:', error);
-        showModal('❌ Error de conexión. Verifica que el backend esté corriendo en http://127.0.0.1:8001', 'error');
+        showModal('❌ Error de conexión.', 'error');
     } finally {
         submitButton.disabled = false;
         submitButton.textContent = originalText;

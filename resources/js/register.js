@@ -222,7 +222,124 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  // =========================
+  // Inicialización de Google
+  // =========================
+  function initGoogleSignIn() {
+    const clientId = registerForm.dataset.googleClientId;
+    
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: window.handleGoogleLogin,
+        auto_prompt: false
+      });
+
+      google.accounts.id.renderButton(
+        document.getElementById("g_id_signin"),
+        { 
+          type: "standard",
+          theme: "outline",
+          text: "signup_with",
+          shape: "rectangular",
+          locale: "es",
+          width: "300"
+        }
+      );
+    } else {
+      // Si la librería no ha cargado, reintentar en 500ms
+      setTimeout(initGoogleSignIn, 500);
+    }
+  }
+
+  if (document.getElementById("g_id_signin")) {
+    initGoogleSignIn();
+  }
 });
+
+// =========================
+// Google Login/Register (Global)
+// =========================
+window.showGoogleError = function(msg) {
+  let box = document.getElementById('googleErrorBox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'googleErrorBox';
+    box.style.cssText = 'background:#fde8e8;color:#c0392b;border:1px solid #e74c3c;border-radius:6px;padding:10px 14px;font-size:13px;margin-top:10px;text-align:center;';
+    const socialDiv = document.querySelector('.social-register');
+    if (socialDiv) socialDiv.after(box);
+  }
+  box.textContent = msg;
+  box.style.display = 'block';
+  setTimeout(() => { box.style.display = 'none'; }, 5000);
+};
+
+window.handleGoogleLogin = async function(response) {
+  const form = document.getElementById('registerForm');
+  if (!form) return;
+  
+  const apiUrl = form.dataset.apiUrl;
+  const sessionUrl = form.dataset.sessionUrl;
+  const modulosUrl = form.dataset.modulosUrl;
+
+  const loadingScreen = document.getElementById('googleLoadingScreen');
+  if (loadingScreen) loadingScreen.style.display = 'flex';
+
+  try {
+    const res = await fetch(`${apiUrl}/auth/google`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        id_token: response.credential
+      })
+    });
+
+    // Parseo seguro: si el servidor devuelve HTML (BD apagada), lo capturamos
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (_) {
+      if (loadingScreen) loadingScreen.style.display = 'none';
+      window.showGoogleError('Error en el servidor. Por favor, inténtalo más tarde');
+      return;
+    }
+
+    if (res.ok) {
+      localStorage.setItem('auth_token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      await fetch(sessionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+          token: data.access_token
+        })
+      });
+
+      window.location.href = modulosUrl;
+    } else {
+      if (loadingScreen) loadingScreen.style.display = 'none';
+      window.showGoogleError(
+        res.status >= 500
+          ? 'Error en el servidor. Por favor, inténtalo más tarde'
+          : (data.message || 'Error al registrarse con Google')
+      );
+    }
+  } catch (e) {
+    if (loadingScreen) loadingScreen.style.display = 'none';
+    console.error('Error Google registro:', e);
+    window.showGoogleError('Error en el servidor. Por favor, inténtalo más tarde');
+  }
+};
+
 
 // =========================
 // Utilidades (sin cambios)

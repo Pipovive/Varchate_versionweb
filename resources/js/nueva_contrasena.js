@@ -50,8 +50,8 @@ function showModal(message, type = 'info', redirectUrl = null) {
 
 // Función para validar la contraseña
 function validatePassword(password) {
-    if (password.length < 10) {
-        return 'La contraseña debe tener al menos 10 caracteres';
+    if (password.length < 8) {
+        return 'La contraseña debe tener al menos 8 caracteres';
     }
 
     const hasUpperCase = /[A-Z]/.test(password);

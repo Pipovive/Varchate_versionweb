@@ -32,7 +32,8 @@
         <form id="loginForm"
           data-api-url="{{ env('VITE_API_BASE_URL', 'http://localhost:8001/api') }}"
           data-session-url="{{ url('/api/set-session-token') }}"
-          data-modulos-url="{{ route('modulos') }}">
+          data-modulos-url="{{ route('modulos') }}"
+          data-google-client-id="{{ env('GOOGLE_CLIENT_ID') }}">
           <input type="email" name="email" class="input-text" placeholder="Correo">
           <div class="input-pass">
             <input type="password" name="password" class="input-password" id="password" placeholder="Contraseña">
@@ -45,19 +46,8 @@
         <div class="divider"><span>O</span></div>
 
         <div class="social-login">
-          <div id="g_id_onload"
-               data-client_id="{{ env('GOOGLE_CLIENT_ID') }}"
-               data-callback="handleGoogleLogin"
-               data-auto_prompt="false">
-          </div>
-          <div class="g_id_signin"
-               data-type="standard"
-               data-theme="outline"
-               data-text="signin_with"
-               data-shape="rectangular"
-               data-locale="es"
-               data-width="300">
-          </div>
+          <!-- Inicialización programática desde login.js -->
+          <div id="g_id_signin"></div>
         </div>
       </div>
       <p class="register">¿No tienes cuenta? <a href="register">Regístrate</a></p>
@@ -108,53 +98,7 @@
     }
   </style>
 
-  <!-- UNA sola función Google -->
-  <script>
-    async function handleGoogleLogin(response) {
-      const form = document.getElementById('loginForm');
-      const apiUrl = form.dataset.apiUrl;
-      const modulosUrl = form.dataset.modulosUrl;
-      const sessionUrl = form.dataset.sessionUrl;
 
-      document.getElementById('googleLoadingScreen').style.display = 'flex';
-
-      try {
-        const res = await fetch(`${apiUrl}/auth/google`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ id_token: response.credential })
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          localStorage.setItem('auth_token', data.access_token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-
-          await fetch(sessionUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({ token: data.access_token })
-          });
-
-          window.location.href = '/modulos';
-        } else {
-          document.getElementById('googleLoadingScreen').style.display = 'none';
-          alert(data.message || 'Error al iniciar sesión con Google');
-        }
-      } catch (e) {
-        document.getElementById('googleLoadingScreen').style.display = 'none';
-        console.error('Error Google login:', e);
-        alert('Error de conexión. Intenta de nuevo.');
-      }
-    }
-  </script>
 
   @vite('resources/js/login.js')
 

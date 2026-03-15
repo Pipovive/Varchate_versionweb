@@ -100,12 +100,12 @@ async function verificarTokenEnSegundoPlano(token) {
                 if (avatarId) {
                     const num = parseInt(avatarId);
                     const filename = isNaN(num)
-                        ? 'default.png'
+                        ? 'avatar_01.png'
                         : `avatar_${String(num).padStart(2, '0')}.png`;
                     avatarUrl = `${avatarsBase}/${filename}`;
                 } else {
                     // Sin avatar (null) → usar default
-                    avatarUrl = `${avatarsBase}/default.png`;
+                    avatarUrl = `${avatarsBase}/avatar_01.png`;
                 }
 
                 // Siempre actualizar localStorage con el valor correcto (incluso si es default)
@@ -3189,14 +3189,19 @@ async function _mostrarRevisionRespuestas(intentoId, originalData) {
 (function iniciarRankingModal() {
     const overlay   = document.getElementById('ranking-modal-overlay');
     const btnRanking = document.getElementById('btn-ranking');
+    const btnRankingMobile = document.getElementById('btn-ranking-mobile');
     const btnClose  = document.getElementById('ranking-modal-close');
 
-    if (!overlay || !btnRanking) return;
+    if (!overlay) return;
 
     // Abrir modal
-    btnRanking.addEventListener('click', (e) => {
-        e.preventDefault();
-        abrirRankingModal();
+    [btnRanking, btnRankingMobile].forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                abrirRankingModal();
+            });
+        }
     });
 
     // Cerrar con X

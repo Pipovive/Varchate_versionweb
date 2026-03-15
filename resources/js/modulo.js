@@ -298,6 +298,9 @@ async function cargarDatosModulo(moduleSlug) {
             moduloActual = await moduloResponse.json();
             console.log('Módulo actual:', moduloActual);
 
+            // Actualizar contexto del chatbot
+            window.varchateChat?.setContext(`Módulo: ${moduloActual.modulo}`);
+
             // --- Resetear vista general antes de cargar nuevo contenido ---
             leccionActualIndex = -1;
             document.getElementById('ejerciciosSeccion')?.remove();
@@ -1136,6 +1139,9 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
 
             console.log('✅ Lección procesada - ID:', leccion.id, 'Título:', leccion.titulo);
 
+            // Actualizar contexto del chatbot
+            window.varchateChat?.setContext(`Lección: ${leccion.titulo}`);
+
             // Limpiar el contenido HTML
             let contenidoLimpio = leccion.contenido || '<p>Contenido no disponible</p>';
             contenidoLimpio = limpiarContenidoHTML(contenidoLimpio);
@@ -1154,6 +1160,8 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
             if (leccionContent) {
                 leccionContent.style.display = 'block';
                 leccionContent.innerHTML = contenidoLimpio;
+                // Asegurar que el chatbot sea visible al cargar lección
+                window.varchateChat?.setVisibility(true);
             }
 
             // Subir al tope automáticamente al cargar nueva lección
@@ -2091,6 +2099,7 @@ window.iniciarEvaluacion = async function (evaluacionId) {
 
 
 function mostrarIntroduccion() {
+    window.varchateChat?.setVisibility(true);
     const introduccionContent = document.getElementById('introduccionContent');
     const leccionContent = document.getElementById('leccionContent');
 
@@ -2736,6 +2745,9 @@ function abrirModalEvaluacion(data) {
     if (overlay) overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
+    // Desactivar chatbot durante evaluación
+    window.varchateChat?.setVisibility(false);
+
     _iniciarTimerModal();
     _renderizarPreguntaModal(0);
 
@@ -2759,6 +2771,9 @@ function _cerrarModalEvaluacion() {
     const overlay = document.getElementById('eval-modal-overlay');
     if (overlay) overlay.style.display = 'none';
     document.body.style.overflow = '';
+
+    // Reactivar chatbot al cerrar evaluación
+    window.varchateChat?.setVisibility(true);
 }
 
 function _iniciarTimerModal() {

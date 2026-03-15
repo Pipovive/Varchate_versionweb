@@ -9,6 +9,7 @@
     <title>Varchate</title>
     <!-- Enlace al archivo CSS externo -->
     @vite('resources/css/dashboard.css')
+    @vite('resources/css/chatbot.css')
 
     <!-- Fuentes -->
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;600;700&display=swap"
@@ -374,7 +375,31 @@ echo "&lt;br&gt;La suma de $a y $b es: " . $suma;
 
 
 
+    <!-- Chatbot UI -->
+    <div id="chatbot-toggle" class="chatbot-toggle" title="¿Necesitas ayuda?">
+        <img src="{{ asset('images/chatbot-icon.svg') }}" alt="Chatbot">
+    </div>
+
+    <div id="chatbot-window" class="chatbot-window">
+        <div class="chatbot-header">
+            <h3><img src="{{ asset('images/chatbot-icon.svg') }}" alt="Cat" style="width:20px; filter:brightness(0) invert(1);"> Varchate Cat</h3>
+            <div class="chatbot-header-actions">
+                <button id="chatbot-delete" class="chatbot-delete-btn" title="Borrar historial">Borrar</button>
+                <button id="chatbot-close" class="chatbot-close">✕</button>
+            </div>
+        </div>
+        <div id="chatbot-messages" class="chatbot-messages">
+            <div class="chat-msg bot">¡Hola! Soy Varchate Cat. 🐾 ¿En qué puedo ayudarte hoy con tu programación?</div>
+        </div>
+        <div class="chatbot-input-area">
+            <input type="text" id="chatbot-input" placeholder="Escribe tu duda aquí...">
+            <button id="chatbot-send"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite('resources/js/dashboard.js')
+    @vite('resources/js/chatbot.js')
 </body>
 
 </html>

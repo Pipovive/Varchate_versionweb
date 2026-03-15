@@ -8,6 +8,8 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
+                'resource/css/email_verificado.css',
+                'resource/js/email_verificado.js',
                 ...glob.sync('resources/css/**/*.css'),
                 ...glob.sync('resources/js/**/*.js'),
             ].filter(file =>

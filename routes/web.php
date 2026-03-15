@@ -99,3 +99,30 @@ Route::post('/api/clear-session-token', function () {
     session()->regenerateToken();
     return response()->json(['success' => true]);
 });
+//EMAIL VERIFICADO
+
+Route::get('/api/email/verify/{id}/{hash}', function ($id, $hash) {
+    try {
+        $response = Http::get("http://127.0.0.1:8001/api/email/verify/{$id}/{$hash}", [
+            'expires'   => request('expires'),
+            'signature' => request('signature'),
+        ]);
+
+        $msg = strtolower($response->json()['message'] ?? '');
+
+        if (str_contains($msg, 'already') || str_contains($msg, 'ya verif')) {
+            return redirect('/email-verificado?status=already');
+        }
+
+        if ($response->successful()) {
+            return redirect('/email-verificado?status=success');
+        }
+
+        return redirect('/email-verificado?status=expired');
+
+    } catch (\Exception $e) {
+        return redirect('/email-verificado?status=expired');
+    }
+});
+
+Route::get('/email-verificado', fn() => view('email-verificado'));

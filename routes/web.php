@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
+use App\Http\Controllers\ChatbotController;
 
 // ===============================
 // RUTAS PÚBLICAS (accesibles sin autenticación)
@@ -127,3 +128,8 @@ Route::get('/api/email/verify/{id}/{hash}', function ($id, $hash) {
 });
 
 Route::get('/email-verificado', fn() => view('email-verificado'));
+
+// ===============================
+// CHATBOT
+// ===============================
+Route::post('/api/chatbot/chat', [ChatbotController::class, 'chat']);

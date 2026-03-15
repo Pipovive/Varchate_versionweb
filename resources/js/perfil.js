@@ -337,6 +337,35 @@ async function cargarDatosUsuario() {
       if (correoEl) {
         correoEl.value = user.email || (storedUser && storedUser.email) || correoEl.value || '';
       }
+
+      // Deshabilitar campo de 'contraseña actual' si el usuario viene de Google y no tiene contraseña
+      const pwContainer = document.getElementById('current_password_container');
+      const currentPwInput = document.getElementById('current_password');
+      if (pwContainer && currentPwInput) {
+        // has_password nos llega del backend ahora
+        const has_password = user.has_password !== undefined ? user.has_password : true;
+        
+        if (has_password === false) {
+          // Mantener visible pero deshabilitarlo
+          currentPwInput.disabled = true;
+          pwContainer.style.opacity = '0.6';
+          currentPwInput.dataset.required = 'false';
+          currentPwInput.placeholder = "No requerida (Cuenta de Google)";
+          
+          // Ocultar el botón del ojito de forma segura
+          const toggleBtn = pwContainer.querySelector('.toggle-pass');
+          if (toggleBtn) toggleBtn.style.display = 'none';
+        } else {
+          // Habilitarlo para usuarios normales
+          currentPwInput.disabled = false;
+          pwContainer.style.opacity = '1';
+          currentPwInput.dataset.required = 'true';
+          currentPwInput.placeholder = "";
+          
+          const toggleBtn = pwContainer.querySelector('.toggle-pass');
+          if (toggleBtn) toggleBtn.style.display = '';
+        }
+      }
     } else {
       // Intentar parsear JSON de error, si no, leer texto
       const errObj = await parseJsonSafe(res);
@@ -512,7 +541,8 @@ perfilForm.addEventListener("submit", async (e) => {
 
     if (new_password && new_password !== "********" && new_password.trim() !== "") {
 
-      if (!current_password || current_password.trim() === "") {
+      const currentPwInput = document.getElementById("current_password");
+      if (currentPwInput.dataset.required !== "false" && (!current_password || current_password.trim() === "")) {
         showErrorToast("Debes ingresar tu contraseña actual en el campo de contraseña");
         return;
       }

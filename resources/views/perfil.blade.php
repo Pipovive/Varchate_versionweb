@@ -67,7 +67,7 @@
             <label for="correo">Correo electrónico</label>
             <input type="email" id="correo" name="correo" value="{{ $currentUser->email ?? '' }}" disabled>
           </div>
-          <div class="campo input-pass">
+          <div class="campo input-pass" id="current_password_container">
             <label for="current_password">Contraseña actual</label>
             <input type="password" id="current_password" name="current_password" value="">
             <button type="button" class="toggle-pass" data-target="current_password" aria-label="Mostrar contraseña">

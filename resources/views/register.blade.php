@@ -39,7 +39,8 @@
                 <h2>Crear cuenta</h2>
                 <form id="registerForm" method="POST"
                     data-api-url="{{ env('VITE_API_BASE_URL', 'http://localhost:8001/api') }}"
-                    data-session-url="{{ url('/api/set-session-token') }}" data-modulos-url="{{ route('modulos') }}">
+                    data-session-url="{{ url('/api/set-session-token') }}" data-modulos-url="{{ route('modulos') }}"
+                    data-google-client-id="{{ env('GOOGLE_CLIENT_ID') }}">
                     <input type="text" name="nombre" placeholder="Nombre completo" required>
                     <input type="email" name="email" placeholder="Correo electrónico" required>
 
@@ -79,13 +80,8 @@
                     <div class="divider"><span>O</span></div>
 
                     <div class="social-register">
-                        <!-- Botón oficial de Google -->
-                        <div id="g_id_onload" data-client_id="{{ env('GOOGLE_CLIENT_ID') }}"
-                            data-callback="handleGoogleLogin" data-auto_prompt="false">
-                        </div>
-                        <div class="g_id_signin" data-type="standard" data-theme="outline" data-text="signup_with"
-                            data-shape="rectangular" data-locale="es" data-width="300">
-                        </div>
+                        <!-- Inicialización programática desde register.js -->
+                        <div id="g_id_signin"></div>
                     </div>
                 </form>
             </div>
@@ -140,56 +136,7 @@
         }
     </style>
 
-    <script>
-        async function handleGoogleLogin(response) {
-            const form = document.getElementById('registerForm');
-            const apiUrl = form.dataset.apiUrl;
-            const sessionUrl = form.dataset.sessionUrl;
-            const modulosUrl = form.dataset.modulosUrl;
 
-            document.getElementById('googleLoadingScreen').style.display = 'flex';
-
-            try {
-                const res = await fetch(`${apiUrl}/auth/google`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        id_token: response.credential
-                    })
-                });
-
-                const data = await res.json();
-
-                if (res.ok) {
-                    localStorage.setItem('auth_token', data.access_token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-
-                    await fetch(sessionUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify({
-                            token: data.access_token
-                        })
-                    });
-
-                    window.location.href = modulosUrl;
-                } else {
-                    document.getElementById('googleLoadingScreen').style.display = 'none';
-                    alert(data.message || 'Error al registrarse con Google');
-                }
-            } catch (e) {
-                document.getElementById('googleLoadingScreen').style.display = 'none';
-                console.error('Error Google registro:', e);
-                alert('Error de conexión. Intenta de nuevo.');
-            }
-        }
-    </script>
 
     @vite('resources/js/register.js')
 

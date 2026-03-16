@@ -305,7 +305,15 @@ document.addEventListener("DOMContentLoaded", () => {
         })
       });
 
-      const data = await response.json();
+      // Parsear JSON de forma segura: si el servidor devuelve HTML (error de BD/PHP),
+      // no exponemos detalles internos al usuario.
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (_) {
+        showFormError("Error en el servidor. Por favor, inténtalo más tarde");
+        return;
+      }
 
       if (!response.ok) {
         // Error 422 - Validación
@@ -333,6 +341,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // Error 429 - Muchos intentos
         else if (response.status === 429) {
           showFormError("Demasiados intentos. Espera unos minutos e inténtalo de nuevo");
+        }
+        // Error 500 o cualquier error de servidor
+        else if (response.status >= 500) {
+          showFormError("Error en el servidor. Por favor, inténtalo más tarde");
         }
         // Otros errores
         else {
@@ -419,11 +431,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
     } catch (error) {
-      // Error de red
+      // Error de red (servidor apagado, sin internet, etc.)
       if (!navigator.onLine) {
         showFormError("No hay conexión a internet. Verifica tu red");
       } else {
-        showFormError("Error de conexión con el servidor. Inténtalo más tarde");
+        showFormError("Error en el servidor. Por favor, inténtalo más tarde");
       }
     } finally {
       // Restaurar botón
@@ -431,4 +443,116 @@ document.addEventListener("DOMContentLoaded", () => {
       submitBtn.textContent = originalText;
     }
   });
+
+  // =========================
+  // Inicialización de Google
+  // =========================
+  function initGoogleSignIn() {
+    const clientId = loginForm.dataset.googleClientId;
+    
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: window.handleGoogleLogin,
+        auto_prompt: false
+      });
+
+      google.accounts.id.renderButton(
+        document.getElementById("g_id_signin"),
+        { 
+          type: "standard",
+          theme: "outline",
+          text: "signin_with",
+          shape: "rectangular",
+          locale: "es",
+          width: "300"
+        }
+      );
+    } else {
+      // Si la librería no ha cargado, reintentar en 500ms
+      setTimeout(initGoogleSignIn, 500);
+    }
+  }
+
+  if (document.getElementById("g_id_signin")) {
+    initGoogleSignIn();
+  }
 });
+
+// =========================
+// Google Login (Global)
+// =========================
+window.showGoogleError = function(msg) {
+  let box = document.getElementById('googleErrorBox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'googleErrorBox';
+    box.style.cssText = 'background:#fde8e8;color:#c0392b;border:1px solid #e74c3c;border-radius:6px;padding:10px 14px;font-size:13px;margin-top:10px;text-align:center;';
+    const socialDiv = document.querySelector('.social-login');
+    if (socialDiv) socialDiv.after(box);
+  }
+  box.textContent = msg;
+  box.style.display = 'block';
+  setTimeout(() => { box.style.display = 'none'; }, 5000);
+};
+
+window.handleGoogleLogin = async function(response) {
+  const form = document.getElementById('loginForm');
+  if (!form) return;
+  
+  const apiUrl = form.dataset.apiUrl;
+  const modulosUrl = form.dataset.modulosUrl;
+  const sessionUrl = form.dataset.sessionUrl;
+
+  const loadingScreen = document.getElementById('googleLoadingScreen');
+  if (loadingScreen) loadingScreen.style.display = 'flex';
+
+  try {
+    const res = await fetch(`${apiUrl}/auth/google`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ id_token: response.credential })
+    });
+
+    // Parseo seguro: si el servidor devuelve HTML (BD apagada), lo capturamos
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (_) {
+      if (loadingScreen) loadingScreen.style.display = 'none';
+      window.showGoogleError('Error en el servidor. Por favor, inténtalo más tarde');
+      return;
+    }
+
+    if (res.ok) {
+      localStorage.setItem('auth_token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      await fetch(sessionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ token: data.access_token })
+      });
+
+      window.location.href = modulosUrl;
+    } else {
+      if (loadingScreen) loadingScreen.style.display = 'none';
+      window.showGoogleError(
+        res.status >= 500
+          ? 'Error en el servidor. Por favor, inténtalo más tarde'
+          : (data.message || 'Error al iniciar sesión con Google')
+      );
+    }
+  } catch (e) {
+    if (loadingScreen) loadingScreen.style.display = 'none';
+    console.error('Error Google login:', e);
+    window.showGoogleError('Error en el servidor. Por favor, inténtalo más tarde');
+  }
+};

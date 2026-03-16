@@ -4,11 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <style>html { scroll-behavior: smooth; }</style>
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
 
     <title>Varchate</title>
     <!-- Enlace al archivo CSS externo -->
-    @vite('resources/css/dashboard.css')
+    @vite('resources/css/home.css')
     @vite('resources/css/chatbot.css')
 
     <!-- Fuentes -->
@@ -19,7 +23,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
     <!-- CodeMirror CSS 5.65.13 -->
-    {{-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    {{--
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css">
@@ -103,7 +108,8 @@
                 <p>Bienvenido a VARCHATE.</p>
                 <p>Aprendé a programar desde cero, practicá con ejercicios interactivos y avanzá paso a paso.<br>
                     Tu código, tu progreso, tu poder.</p>
-                <button class="start-btn" onclick="window.location.href='{{ route('login') }}'">Empieza a programar</button>
+                <button class="start-btn" onclick="window.location.href='{{ route('login') }}'">Empieza a
+                    programar</button>
             </div>
             <div class="right-content">
                 <!-- Aquí luego puedes colocar una imagen, video, ilustración, etc. -->
@@ -291,9 +297,9 @@ SELECT * FROM Customers;
         <div class="right-content-php">
             <div class="editor-container-php">
                 <div class="editor-php">
-                    
 
-<textarea id="code-editor-php">
+
+                    <textarea id="code-editor-php">
 &lt;?php
 // Ejemplo 1: Mostrar un mensaje
 echo "Hola, Mundo desde PHP!";
@@ -400,8 +406,7 @@ echo "&lt;br&gt;La suma de $a y $b es: " . $suma;
     @endauth
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    @vite('resources/js/dashboard.js')
-    @auth
+    @vite('resources/js/home.js')
     @vite('resources/js/chatbot.js')
     <script>window.varchateIcon = "{{ asset('images/chatbot-icon.svg') }}";</script>
     @endauth

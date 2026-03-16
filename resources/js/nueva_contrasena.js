@@ -46,10 +46,26 @@ function showModal(message, type = 'info', redirectUrl = null) {
 
 // Función para validar la contraseña
 function validatePassword(password) {
-    if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres';
-    if (!/[A-Z]/.test(password)) return 'La contraseña debe contener al menos una letra MAYÚSCULA';
-    if (!/[0-9]/.test(password)) return 'La contraseña debe contener al menos un número';
-    if (!/[a-z]/.test(password)) return 'La contraseña debe contener al menos una letra minúscula';
+    if (password.length < 8) {
+        return 'La contraseña debe tener al menos 8 caracteres';
+    }
+
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+
+    if (!hasUpperCase) {
+        return 'La contraseña debe contener al menos una letra MAYÚSCULA';
+    }
+
+    if (!hasNumber) {
+        return 'La contraseña debe contener al menos un número';
+    }
+
+    if (!hasLowerCase) {
+        return 'La contraseña debe contener al menos una letra minúscula';
+    }
+
     return null;
 }
 

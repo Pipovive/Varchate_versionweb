@@ -1,5 +1,9 @@
-const API_BASE_URL = document.getElementById('resetForm')?.dataset.apiUrl?.replace('/api', '')
-    || 'https://api-varchate-v1-production.up.railway.app';
+const form = document.getElementById('resetForm');
+const API_BASE_URL = (form && form.dataset.apiUrl)
+    ? form.dataset.apiUrl
+    : 'https://api-varchate-v1-production.up.railway.app/api';
+
+console.log('API URL:', API_BASE_URL);
 
 // Función para obtener parámetros de la URL
 function getUrlParams() {

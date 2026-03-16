@@ -1725,6 +1725,10 @@ async function cargarEvaluacion(evaluacionId) {
             const json = await response.json();
             console.log('✅ Evaluación cargada:', json);
 
+            // Limpiar secciones de ejercicios y editor previas
+            document.getElementById('ejerciciosSeccion')?.remove();
+            document.getElementById('editorIndependienteSeccion')?.remove();
+
             const introduccionContent = document.getElementById('introduccionContent');
             const leccionContent = document.getElementById('leccionContent');
             // Ocultar el botón "Siguiente" en la sección de evaluación
@@ -2146,8 +2150,6 @@ function renderizarEvaluacion(json) {
         botonHTML = `<button class="btn-realizar-evaluacion btn-realizar-evaluacion--aprobado" id="btn-iniciar-evaluacion" disabled>✓ Evaluación aprobada</button>`;
     } else if (!puedeIntentar) {
         botonHTML = `<button class="btn-realizar-evaluacion btn-realizar-evaluacion--bloqueado" id="btn-iniciar-evaluacion" disabled>🔒 ${mensajeBloqueo || 'No puedes intentar ahora'}</button>`;
-    } else if (estadoUsuario.tiene_intento_en_progreso) {
-        botonHTML = `<button class="btn-realizar-evaluacion" id="btn-iniciar-evaluacion">Continuar evaluación</button>`;
     } else {
         botonHTML = `<button class="btn-realizar-evaluacion" id="btn-iniciar-evaluacion">Realizar evaluación</button>`;
     }

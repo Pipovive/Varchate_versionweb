@@ -2276,271 +2276,70 @@
 .ej-dot.dot-incorrecto {
   background: #f87171;
 }
+/* ===== RESULTADO MODAL — FIX MÓVIL ===== */
+@media (max-width: 460px) {
 
-/* ===============================
-   ESTILOS PARA EDITOR DE CÓDIGO
-=============================== */
-.editor-codigo-container {
-  margin-top: 15px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-}
-
-.editor-codigo-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 16px;
-  background: #1e293b;
-  color: #fff;
-  height: 40px;
-}
-
-.editor-tabs {
-  display: flex;
-  height: 100%;
-}
-
-.editor-tab {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  padding: 0 16px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  height: 100%;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-}
-
-.editor-tab:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
-}
-
-.editor-tab.active {
-  color: #38bdf8;
-  border-bottom: 2px solid #38bdf8;
-  background: rgba(56, 189, 248, 0.1);
-}
-
-.editor-codigo-lang {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 3px 8px;
-  border-radius: 4px;
-}
-
-.editor-codigo-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.btn-ejecutar-codigo {
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 5px 12px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  transition: all 0.2s ease;
-}
-
-.btn-ejecutar-codigo:hover {
-  background: #059669;
-  transform: translateY(-1px);
-}
-
-.editor-codigo-main {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  min-height: 250px;
-}
-
-@media (max-width: 768px) {
-  .editor-codigo-main {
-    grid-template-columns: 1fr;
-  }
-}
-
-.CodeMirror {
-  height: 100% !important;
-  font-family: 'Fira Code', 'Cascadia Code', monospace;
-  font-size: 14px;
-}
-
-.editor-codigo-preview {
-  background: #fff;
-  border-left: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-}
-
-.preview-label {
-  padding: 4px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
-  text-transform: uppercase;
-}
-
-#preview-iframe,
-#preview-iframe-standalone {
-  flex: 1;
-  width: 100%;
-  border: none;
-  background: white;
-}
-
-/* ==========================================================================
-   INTERACTIVE CODE EDITOR (STANDALONE)
-   ========================================================================== */
-.editor-independiente-seccion {
-    margin-top: 2rem;
-    padding-top: 2rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    animation: fadeInUp 0.5s ease-out;
-}
-
-.editor-standalone-header {
-    margin-bottom: 1.5rem;
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0.05) 100%);
-    border: 1px solid rgba(56, 189, 248, 0.2);
-}
-
-.editor-standalone-header i {
-    color: #38bdf8;
-    filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.4));
-}
-
-.editor-codigo-output {
-  flex: 1;
-  padding: 12px;
-  font-family: monospace;
-  font-size: 13px;
-  overflow-y: auto;
-  background: #0f172a;
-  color: #38bdf8;
-  white-space: pre-wrap;
-}
-/* ==========================================================================
-   BIENVENIDA MODULOS (HERO SECTION)
-   ========================================================================== */
-.welcome-hero {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 2rem;
-    text-align: center;
-    height: 100%;
-    animation: fadeInWelcome 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.welcome-card {
-    background: white;
-    padding: 3rem;
-    border-radius: 24px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
-    max-width: 600px;
-    width: 100%;
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(0, 153, 255, 0.1);
-}
-
-.welcome-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 6px;
-    height: 100%;
-    background: #0099FF;
-}
-
-.welcome-icon-container {
-    margin-bottom: 1.5rem;
-}
-
-.welcome-mascot {
-    width: 160px;
-    height: auto;
-    filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
-    animation: bounceSlow 3s ease-in-out infinite;
-}
-
-.welcome-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: #1a1a2e;
-    margin-bottom: 0.5rem;
-    letter-spacing: -0.5px;
-}
-
-.welcome-subtitle {
-    font-size: 1.25rem;
-    color: #0099FF;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-}
-
-.welcome-text {
-    font-size: 1.1rem;
-    color: #64748b;
-    line-height: 1.7;
-    max-width: 450px;
-    margin: 0 auto;
-}
-
-@keyframes fadeInWelcome {
-    from {
-        opacity: 0;
-        transform: translateY(20px) scale(0.98);
+    .eval-result-screen {
+        border-radius: 16px !important;
+        min-height: unset !important;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
+
+    .eval-result-header {
+        padding: 20px 20px 0 !important;
+    }
+
+    .eval-result-logo {
+        height: 34px !important;
+    }
+
+    .eval-result-body {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 16px !important;
+        padding: 16px 20px 8px !important;
+    }
+
+    .eval-result-mascota-img {
+        width: 160px !important;
+        margin-top: 0 !important;
+    }
+
+    .eval-result-info {
+        width: 100% !important;
+        padding-top: 0 !important;
+    }
+
+    .eval-result-modulo {
+        font-size: 2rem !important;
+        margin: 0 0 16px 0 !important;
+    }
+
+    .eval-result-tiempo {
+        margin-bottom: 16px !important;
+        font-size: 1rem !important;
+    }
+
+    .eval-result-score-title {
+        font-size: 1.15rem !important;
+    }
+
+    .eval-result-score-line {
+        font-size: 0.95rem !important;
+    }
+
+    .eval-result-footer {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+        padding: 16px 20px 20px !important;
+    }
+
+    .eval-result-btn-primary,
+    .eval-result-btn-secondary {
+        flex: 1 !important;
+        min-width: 120px !important;
+        padding: 12px 16px !important;
+        font-size: 0.9rem !important;
+        text-align: center !important;
     }
 }
-
-@keyframes bounceSlow {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-10px);
-    }
-}
-
-/* Modo oscuro para bienvenida */
-.dark-mode .welcome-card {
-    background: #1e293b;
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-}
-
-.dark-mode .welcome-title {
-    color: #f8fafc;
-}
-
-.dark-mode .welcome-text {
-    color: #94a3b8;
-}
-

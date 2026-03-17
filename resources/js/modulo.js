@@ -1188,6 +1188,7 @@ async function cargarLeccion(moduloSlug, leccionSlug) {
             if (window.leccionesOrdenadas) {
                 const indiceActual = window.leccionesOrdenadas.findIndex(l => l.id === leccion.id);
                 console.log('📍 Índice de lección actual:', indiceActual);
+                if (indiceActual !== -1) leccionActualIndex = indiceActual;
             }
 
             // ===== EJERCICIOS: cargar y mostrar si la lección tiene =====
@@ -1229,10 +1230,20 @@ async function cargarEjerciciosLeccion(moduloId, leccionId, leccionObj = null) {
 
         if (!tieneEjerciciosFlag && !tieneEditorCodigoFlag) {
             console.log('ℹ️ La lección no tiene activados ejercicios ni editor de código');
+            // Asegurar que el botón siguiente esté habilitado si no hay ejercicios
+            const btnNextLeccion = document.getElementById('btnNext');
+            if (btnNextLeccion) btnNextLeccion.disabled = false;
+            
             // Asegurar limpieza por si acaso
             document.getElementById('ejerciciosSeccion')?.remove();
             document.getElementById('editorIndependienteSeccion')?.remove();
             return;
+        }
+
+        // Si hay ejercicios, bloqueamos el botón siguiente hasta que se completen
+        if (tieneEjerciciosFlag) {
+            const btnNextLeccion = document.getElementById('btnNext');
+            if (btnNextLeccion) btnNextLeccion.disabled = true;
         }
 
         const url = `${apiUrl}/modulos/${moduloId}/lecciones/${leccionId}/ejercicios`;
@@ -1330,6 +1341,10 @@ function renderSmartContent(str) {
 }
 
 function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
+    const mainEl = document.querySelector('main.container');
+    const apiUrl = mainEl?.dataset.apiUrl || 'http://localhost:8001/api';
+    const token = localStorage.getItem('auth_token');
+
     // Inyectamos en contentSection (FUERA de leccionContent) para evitar
     // que los <style> del HTML de la lección sobreescriban nuestros estilos
     const contentSection = document.getElementById('contentSection');
@@ -1407,6 +1422,13 @@ function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
         const respondido = est.respondido;
         const correcto = est.correcto;
 
+        // --- CONTROL DEL BOTÓN SIGUIENTE GLOBAL ---
+        const btnNextLeccion = document.getElementById('btnNext');
+        if (btnNextLeccion) {
+            const todosCorrectos = estados.every(e => e.correcto);
+            btnNextLeccion.disabled = !todosCorrectos;
+        }
+
         seccion.innerHTML = `
             <div class="ejercicios-leccion-header">
                 <i class="fa-solid fa-pen-to-square"></i>
@@ -1448,7 +1470,9 @@ function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
                         <span class="ej-dot ${estados[i].respondido ? (estados[i].correcto ? 'dot-correcto' : 'dot-incorrecto') : ''} ${i === indexActual ? 'dot-actual' : ''}"></span>
                     `).join('')}
                 </div>
-                <button class="ejercicio-btn-nav" id="btnSiguiente" ${indexActual === ejercicios.length - 1 ? 'disabled' : ''}>Siguiente →</button>
+                <button class="ejercicio-btn-nav" id="btnSiguiente" ${!correcto ? 'disabled' : ''}>
+                    ${indexActual === ejercicios.length - 1 ? 'Finalizar Práctica →' : 'Siguiente →'}
+                </button>
             </div>
         `;
 
@@ -1481,7 +1505,19 @@ function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
         });
 
         seccion.querySelector('#btnSiguiente')?.addEventListener('click', () => {
-            if (indexActual < ejercicios.length - 1) { indexActual++; render(); }
+            if (indexActual < ejercicios.length - 1) { 
+                indexActual++; 
+                render(); 
+            } else if (estados[indexActual].correcto) {
+                // Si es el último y acertó, podemos intentar avanzar la lección completa
+                const mainNext = document.getElementById('btnNext');
+                if (mainNext && !mainNext.disabled) {
+                    mainNext.click();
+                } else if (mainNext) {
+                    // Si el botón está deshabilitado por alguna razón pero acertó, mostramos éxito
+                    mostrarMensajeExito('¡Has completado todos los ejercicios! Puedes continuar.');
+                }
+            }
         });
 
         // Selección de opciones
@@ -1515,6 +1551,90 @@ function renderizarEjerciciosLeccion(ejercicios, moduloId, leccionId) {
                         draggedItem = null;
                     }
                 });
+            });
+        }
+
+        // Comprobar
+        const btnComprobar = seccion.querySelector('#btnComprobar');
+        if (btnComprobar) {
+            btnComprobar.addEventListener('click', () => {
+                const est = estados[indexActual];
+                const ej = ejercicios[indexActual];
+
+                if (ej.tipo === 'seleccion_multiple' || ej.tipo === 'verdadero_falso') {
+                    if (!est.seleccionId) return;
+
+                    mostrarSpinner(true);
+                    fetch(`${apiUrl}/modulos/${moduloActual.id}/lecciones/${leccionId}/ejercicios/${ej.id}/intento`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            opcion_id: est.seleccionId
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(json => {
+                        if (json.success) {
+                            est.correcto = json.data.es_correcta;
+                            est.feedback = json.data.feedback;
+                            est.opcionCorrecta = json.data.opcion_correcta;
+                            est.respondido = true;
+                            render();
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error validando ejercicio:', err);
+                        mostrarMensajeBloqueado('Error al validar la respuesta. Inténtalo de nuevo.');
+                    })
+                    .finally(() => mostrarSpinner(false));
+
+                } else if (ej.tipo === 'arrastrar_soltar') {
+                    const zonas = seccion.querySelectorAll('.drag-zona');
+                    const parejasParaAPI = [];
+                    
+                    zonas.forEach(zona => {
+                        const item = zona.querySelector('.drag-item');
+                        if (item) {
+                            parejasParaAPI.push({
+                                id_opcion: item.dataset.opcionId,
+                                respuesta: zona.dataset.pareja
+                            });
+                        }
+                    });
+
+                    if (parejasParaAPI.length === 0) return;
+
+                    mostrarSpinner(true);
+                    fetch(`${apiUrl}/modulos/${moduloActual.id}/lecciones/${leccionId}/ejercicios/${ej.id}/intento`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            parejas: parejasParaAPI
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(json => {
+                        if (json.success) {
+                            est.correcto = json.data.es_correcta;
+                            est.feedback = json.data.feedback;
+                            est.respondido = true;
+                            render();
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error validando ejercicio drag-drop:', err);
+                        mostrarMensajeBloqueado('Error al validar la respuesta. Inténtalo de nuevo.');
+                    })
+                    .finally(() => mostrarSpinner(false));
+                }
             });
         }
 

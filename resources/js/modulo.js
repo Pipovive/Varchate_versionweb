@@ -246,6 +246,12 @@ async function cargarDatosModulo(moduleSlug) {
     const apiUrl = mainEl?.dataset.apiUrl || 'http://localhost:8001/api';
     const token = localStorage.getItem('auth_token');
 
+    // Restaurar el layout con sidebar al cargar un módulo
+    const mainLayout = document.querySelector('.main-layout');
+    const sidebar = document.getElementById('sidebar');
+    if (mainLayout) mainLayout.classList.remove('no-sidebar');
+    if (sidebar) sidebar.style.display = '';
+
     mostrarSpinner(true);
 
     try {
@@ -2329,6 +2335,28 @@ function mostrarBienvenidaModulos() {
     if (leccionContent) leccionContent.style.display = 'none';
     if (btnNext) btnNext.style.display = 'none';
     
+    // Ocultar sidebar y ajustar layout a pantalla completa
+    const mainLayout = document.querySelector('.main-layout');
+    const sidebar = document.getElementById('sidebar');
+    if (mainLayout) mainLayout.classList.add('no-sidebar');
+    if (sidebar) {
+        sidebar.style.display = 'none';
+        sidebar.innerHTML = ''; // Limpiar lecciones previas
+    }
+
+    // Resetear botones superiores (quitar activo)
+    document.querySelectorAll('#topButtonsContainer button').forEach(btn => btn.classList.remove('active'));
+
+    // Ocultar el contenedor completo del botón siguiente para una vista limpia
+    const btnContainer = document.querySelector('.btn-container');
+    if (btnContainer) btnContainer.style.display = 'none';
+
+    // Eliminar secciones dinámicas (ejercicios, editores, evaluación) para resetear la vista
+    document.getElementById('ejerciciosSeccion')?.remove();
+    document.getElementById('editorIndependienteSeccion')?.remove();
+    const evalModal = document.getElementById('eval-modal-overlay');
+    if (evalModal) evalModal.style.display = 'none';
+
     // Ocultar ranking y progreso en bienvenida (se mostrarán dentro del dashboard si es necesario)
     rankingElements.forEach(el => el.style.display = 'none');
     progressElements.forEach(el => el.style.display = 'none');
@@ -2368,6 +2396,35 @@ function mostrarBienvenidaModulos() {
     }
 }
 
+function configurarLogo() {
+    if (window._logo_nav_ok) return;
+    window._logo_nav_ok = true;
+
+    const logoLinks = document.querySelectorAll('.logo-link');
+    logoLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // Navegar a la vista general (/modulos)
+            const newUrl = '/modulos';
+            window.history.pushState({ moduleSlug: null }, '', newUrl);
+            
+            // Mostrar la bienvenida con limpieza total
+            moduloActual = null;
+            mostrarBienvenidaModulos();
+            
+            // Asegurarnos de que el scroll vuelva al inicio
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Cerrar sidebar y overlay en móvil
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+        });
+    });
+}
+
 function getModuleIcon(name) {
     const lowerName = name.toLowerCase();
     if (lowerName.includes('html')) return 'fa-code';
@@ -2398,36 +2455,6 @@ function inicializarFuncionalidades() {
     configurarLogo();
 }
 
-function configurarLogo() {
-    if (window._logo_nav_ok) return;
-    window._logo_nav_ok = true;
-
-    const logoLinks = document.querySelectorAll('.logo-link');
-    logoLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            
-            // Navegar a la vista general (/modulos)
-            const newUrl = '/modulos';
-            window.history.pushState({ moduleSlug: null }, '', newUrl);
-            
-            // Mostrar la bienvenida y resetear el estado del módulo actual
-            moduloActual = null;
-            mostrarBienvenidaModulos();
-            
-            // Cerrar sidebar y overlay en móvil
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            if (sidebar) sidebar.classList.remove('active');
-            if (overlay) overlay.classList.remove('active');
-            
-            // Resetear botones activos del sidebar
-            document.querySelectorAll('.sidebar button').forEach(btn => btn.classList.remove('active'));
-            const introBtn = document.querySelector('.sidebar button[data-tipo="intro"]');
-            if (introBtn) introBtn.classList.add('active');
-        });
-    });
-}
 
 function configurarProgreso() {
     const progressFills = document.querySelectorAll('.progress-fill');

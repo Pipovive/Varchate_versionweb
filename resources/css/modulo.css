@@ -322,6 +322,10 @@
     gap: 20px;
   }
 
+  .main-layout.no-sidebar {
+    grid-template-columns: 1fr;
+  }
+
   /* sidebar */
   .sidebar {
     display: flex;

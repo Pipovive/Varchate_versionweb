@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showFieldError(registerForm.nombre, "El nombre debe tener al menos 3 caracteres");
       hasClientErrors = true;
     } else if (nombre.length > 40) {
-      showFieldError(registerForm.nombre, "El nombre no puede exceder los 40 caracteres");
+      showFieldError(registerForm.nombre, "El nombre no puede exceder los 40 caracteres.");
       hasClientErrors = true;
     } else if (/[0-9]/.test(nombre)) {  
       showFieldError(registerForm.nombre, "El nombre no puede contener números");

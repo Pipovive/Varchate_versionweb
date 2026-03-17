@@ -1686,9 +1686,9 @@ function renderizarEditorIndependiente(config) {
         <div class="editor-codigo-container">
             <div class="editor-codigo-header">
                 <div class="editor-tabs">
-                    <button class="editor-tab active" data-lang="html">index.html</button>
-                    <button class="editor-tab" data-lang="css">style.css</button>
-                    <button class="editor-tab" data-lang="js">script.js</button>
+                    <button class="editor-tab active" data-lang="html"><i class="fa-brands fa-html5"></i> HTML</button>
+                    <button class="editor-tab" data-lang="css"><i class="fa-brands fa-css3-alt"></i> CSS</button>
+                    <button class="editor-tab" data-lang="js"><i class="fa-brands fa-js"></i> JS</button>
                 </div>
                 <div class="editor-codigo-actions">
                     <button class="btn-ejecutar-codigo" id="btnEjecutarStandalone">
@@ -1698,12 +1698,17 @@ function renderizarEditorIndependiente(config) {
             </div>
             <div class="editor-codigo-main">
                 <div class="editor-panes-container">
-                    <textarea id="standalone-html">${escapeHTML(config.codigo_inicial)}</textarea>
-                    <textarea id="standalone-css" style="display:none;">${escapeHTML(config.css_inicial)}</textarea>
-                    <textarea id="standalone-js" style="display:none;">${escapeHTML(config.js_inicial)}</textarea>
+                    <div class="editor-pane pane-code" data-pane="html">
+                        <textarea id="standalone-html">${escapeHTML(config.codigo_inicial)}</textarea>
+                    </div>
+                    <div class="editor-pane pane-code" data-pane="css" style="display:none;">
+                        <textarea id="standalone-css">${escapeHTML(config.css_inicial)}</textarea>
+                    </div>
+                    <div class="editor-pane pane-code" data-pane="js" style="display:none;">
+                        <textarea id="standalone-js">${escapeHTML(config.js_inicial)}</textarea>
+                    </div>
                 </div>
                 <div class="editor-codigo-preview">
-                    <span class="preview-label">Resultado en vivo</span>
                     <iframe id="preview-iframe-standalone"></iframe>
                 </div>
             </div>
@@ -1735,22 +1740,49 @@ function renderizarEditorIndependiente(config) {
                 autoCloseBrackets: true,
                 matchBrackets: true,
                 tabSize: 4,
-                lineWrapping: true
+                lineWrapping: true,
+                extraKeys: {"Ctrl-Space": "autocomplete"}
+            });
+
+            // Autocompletado automático al escribir
+            editors[lang].on("inputRead", function(cm, change) {
+                if (change.origin !== "+input" || 
+                    change.text[0] === " " || 
+                    change.text[0] === ";" || 
+                    change.text[0] === "(" || 
+                    change.text[0] === ")" || 
+                    change.text[0] === "{" || 
+                    change.text[0] === "}") return;
+                
+                cm.showHint({
+                    completeSingle: false,
+                    hint: CodeMirror.hint[lang === 'js' ? 'javascript' : (lang === 'css' ? 'css' : 'html')]
+                });
             });
         }
     });
+
+    // Forzar refresco inicial para evitar que el editor salga "aplastado" o hacia abajo
+    setTimeout(() => {
+        Object.values(editors).forEach(ed => ed.refresh());
+    }, 150);
 
     // Pestañas
     seccion.querySelectorAll('.editor-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             const lang = tab.dataset.lang;
+            
+            // Actualizar botones de pestaña
             seccion.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            ['html', 'css', 'js'].forEach(l => {
-                const pane = seccion.querySelector(`#standalone-${l}`).nextSibling;
-                if (l === lang) {
+
+            // Actualizar visibilidad de paneles (solo para código)
+            seccion.querySelectorAll('.editor-pane.pane-code').forEach(pane => {
+                if (pane.dataset.pane === lang) {
                     pane.style.display = 'block';
-                    editors[l].refresh();
+                    if (editors[lang]) {
+                        editors[lang].refresh();
+                    }
                 } else {
                     pane.style.display = 'none';
                 }
@@ -1758,7 +1790,6 @@ function renderizarEditorIndependiente(config) {
         });
     });
 
-    // Ejecutar
     // Ejecutar
     seccion.querySelector('#btnEjecutarStandalone').addEventListener('click', () => {
         const iframe = seccion.querySelector('#preview-iframe-standalone');

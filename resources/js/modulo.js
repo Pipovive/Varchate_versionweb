@@ -2309,6 +2309,13 @@ function mostrarSpinner(mostrar) {
     }
 }
 
+function getGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return '¡Buenos días';
+    if (hour < 18) return '¡Buenas tardes';
+    return '¡Buenas noches';
+}
+
 function mostrarBienvenidaModulos() {
     const contentSection = document.getElementById('contentSection');
     const introduccionContent = document.getElementById('introduccionContent');
@@ -2322,36 +2329,54 @@ function mostrarBienvenidaModulos() {
     if (leccionContent) leccionContent.style.display = 'none';
     if (btnNext) btnNext.style.display = 'none';
     
-    // Ocultar ranking y progreso en bienvenida
+    // Ocultar ranking y progreso en bienvenida (se mostrarán dentro del dashboard si es necesario)
     rankingElements.forEach(el => el.style.display = 'none');
     progressElements.forEach(el => el.style.display = 'none');
 
     document.getElementById('bienvenidaContent')?.remove();
 
-    const nombre = localStorage.getItem('user_nombre') || 'Usuario';
+    const nombre = localStorage.getItem('user_nombre') || 'Estudiante';
     const imagesBase = document.querySelector('main.container')?.dataset.imagesUrl || '/images';
     
     if (contentSection) {
         const bienvenidaDiv = document.createElement('div');
         bienvenidaDiv.id = 'bienvenidaContent';
-        bienvenidaDiv.className = 'welcome-hero';
+        bienvenidaDiv.className = 'dashboard-container';
         
         bienvenidaDiv.innerHTML = `
-            <div class="welcome-card">
-                <div class="welcome-icon-container">
-                    <img src="${imagesBase}/alegre.png" alt="Varchate Mascot" class="welcome-mascot">
+            <div class="dashboard-hero">
+                <div class="hero-text">
+                    <h2 class="hero-greeting">${getGreeting()}, ${nombre}! 👋</h2>
+                    <p class="hero-subtitle">¡Haz realidad tus proyectos! Bienvenido a VARCHATE, tu lugar para aprender desde cero.</p>
+                    <p class="hero-description">
+                        Elige un módulo en el <b>menú superior</b> para comenzar tu viaje en la programación.
+                    </p>
                 </div>
-                <h2 class="welcome-title">¡Hola, ${nombre}!</h2>
-                <p class="welcome-subtitle">Bienvenido a tu panel de aprendizaje</p>
-                <p class="welcome-text">
-                    Estamos emocionados de tenerte aquí. Elige un módulo del menú superior para comenzar 
-                    tu viaje en el mundo de la programación.
-                </p>
+                <div class="hero-mascot-container">
+                    <img src="${imagesBase}/alegre.png" alt="Varchate Mascot" class="hero-mascot">
+                </div>
+            </div>
+            
+            <div class="dashboard-footer-stats">
+                <div class="stat-item">
+                    <i class="fas fa-rocket"></i>
+                    <span>¿Listo para superar tus metas hoy?</span>
+                </div>
             </div>
         `;
-        // Insertamos al principio para que quede por encima de los contenedores ocultos
         contentSection.insertBefore(bienvenidaDiv, contentSection.firstChild);
     }
+}
+
+function getModuleIcon(name) {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('html')) return 'fa-code';
+    if (lowerName.includes('css')) return 'fa-palette';
+    if (lowerName.includes('js') || lowerName.includes('javascript')) return 'fa-bolt';
+    if (lowerName.includes('sql') || lowerName.includes('base de datos')) return 'fa-database';
+    if (lowerName.includes('php')) return 'fa-server';
+    if (lowerName.includes('intro')) return 'fa-lightbulb';
+    return 'fa-book';
 }
 
 function mostrarErrorModulo() {

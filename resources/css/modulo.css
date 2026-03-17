@@ -2063,10 +2063,10 @@
 
     /* Footer */
     .footer-container {
-      width: 100%;
+      width: 130%;
       padding-top: 80px;
       background-image: url("../images/ola-footer.png");
-      background-size: cover;
+      background-size: 100% auto;
       background-position: top center;
       background-repeat: no-repeat;
       margin: 40px 0 0 0;

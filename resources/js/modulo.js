@@ -2395,6 +2395,38 @@ function inicializarFuncionalidades() {
     configurarBotonesModulos();
     manejarNavegacion();
     configurarBotonSiguiente();
+    configurarLogo();
+}
+
+function configurarLogo() {
+    if (window._logo_nav_ok) return;
+    window._logo_nav_ok = true;
+
+    const logoLinks = document.querySelectorAll('.logo-link');
+    logoLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // Navegar a la vista general (/modulos)
+            const newUrl = '/modulos';
+            window.history.pushState({ moduleSlug: null }, '', newUrl);
+            
+            // Mostrar la bienvenida y resetear el estado del módulo actual
+            moduloActual = null;
+            mostrarBienvenidaModulos();
+            
+            // Cerrar sidebar y overlay en móvil
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+            
+            // Resetear botones activos del sidebar
+            document.querySelectorAll('.sidebar button').forEach(btn => btn.classList.remove('active'));
+            const introBtn = document.querySelector('.sidebar button[data-tipo="intro"]');
+            if (introBtn) introBtn.classList.add('active');
+        });
+    });
 }
 
 function configurarProgreso() {

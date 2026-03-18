@@ -1,4 +1,24 @@
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap');
+  /* Fuentes locales */
+  @font-face {
+    font-family: 'Barlow Semi Condensed';
+    src: url('../fonts/Barlow_Semi_Condensed/BarlowSemiCondensed-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Barlow Semi Condensed';
+    src: url('../fonts/Barlow_Semi_Condensed/BarlowSemiCondensed-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Barlow Semi Condensed';
+    src: url('../fonts/Barlow_Semi_Condensed/BarlowSemiCondensed-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+  }
 
   :focus {
     outline: none;
@@ -17,7 +37,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-family: 'Barlow Semi Condensed', sans-serif !important; /* Predeterminada para todo */
   }
 
   body {

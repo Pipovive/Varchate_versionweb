@@ -1202,7 +1202,6 @@ async function cargarEjerciciosLeccion(moduloId, leccionId, leccionObj = null) {
 
 
         if (!tieneEjerciciosFlag && !tieneEditorCodigoFlag) {
-            console.log('ℹ️ La lección no tiene activados ejercicios ni editor de código');
             // Asegurar que el botón siguiente esté habilitado si no hay ejercicios
             const btnNextLeccion = document.getElementById('btnNext');
             if (btnNextLeccion) btnNextLeccion.disabled = false;

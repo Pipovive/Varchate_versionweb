@@ -551,18 +551,14 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    /* centra título + párrafo en el alto del icono */
+    flex: 1; /* ocupa el espacio restante */
   }
 
   .lesson strong {
-    font-weight: 600;
-  }
-
-  .lesson p {
-    margin: 0;
-    /* elimina margen extra */
-    font-size: 15px;
-    color: #616461;
+    font-weight: 700;
+    font-size: 17px;
+    color: #323434;
+    line-height: 1.2;
   }
 
   .btn-container {

@@ -703,16 +703,6 @@ function renderizarLecciones(lecciones) {
     let lessonsHTML = '';
 
     leccionesOrdenadas.forEach((leccion, index) => {
-        // Extraer un párrafo corto del contenido para la descripción
-        let descripcionCorta = '';
-        if (leccion.contenido) {
-            // Eliminar etiquetas HTML y tomar los primeros 100 caracteres
-            const textoPlano = leccion.contenido.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-            descripcionCorta = textoPlano.substring(0, 100) + (textoPlano.length > 100 ? '...' : '');
-        } else {
-            descripcionCorta = 'Contenido de la lección';
-        }
-
         // Marcar visualmente las lecciones completadas
         const claseCompletada = index < leccionesCompletadas ? 'completed' : '';
 
@@ -724,8 +714,6 @@ function renderizarLecciones(lecciones) {
             <i class="fa-regular fa-file-lines"></i>
             <div>
                 <strong>Lección ${index + 1} – ${leccion.titulo || 'Sin título'}</strong>
-                <p>${descripcionCorta}</p>
-                <!-- ELIMINADO: el span con el texto "Completada" -->
             </div>
         </div>
     `;
@@ -744,7 +732,6 @@ function renderizarLecciones(lecciones) {
                 <i class="fa-regular fa-file-lines"></i>
                 <div>
                     <strong>${evaluacionData?.titulo || 'Evaluación del Módulo'}</strong>
-                    <p>${descEvaluacion}</p>
                 </div>
             </div>
         `;
@@ -757,7 +744,6 @@ function renderizarLecciones(lecciones) {
                 <i class="fa-solid fa-certificate"></i>
                 <div>
                     <strong>Certificado del Módulo</strong>
-                    <p>${evaluacionAprobada ? 'Descarga tu certificado de finalización' : 'Aprueba la evaluación para obtener tu certificado'}</p>
                 </div>
             </div>
         `;

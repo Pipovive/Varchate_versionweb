@@ -1206,6 +1206,7 @@ async function cargarEjerciciosLeccion(moduloId, leccionId, leccionObj = null) {
             const btnNextLeccion = document.getElementById('btnNext');
             if (btnNextLeccion) btnNextLeccion.disabled = false;
 
+
             // Asegurar limpieza por si acaso
             document.getElementById('ejerciciosSeccion')?.remove();
             document.getElementById('editorIndependienteSeccion')?.remove();

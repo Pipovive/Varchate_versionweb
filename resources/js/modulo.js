@@ -1293,9 +1293,9 @@ async function cargarEjerciciosLeccion(moduloId, leccionId, leccionObj = null) {
                 id: 'editor-practica-' + leccionId,
                 instrucciones: 'Practica libremente con el editor.',
                 titulo: 'Editor de Código Interactivo',
-                codigo_inicial: leccionObj?.codigo_base || '<!-- Escribe tu HTML aquí -->\n<h1>Hola Varchate</h1>',
-                css_inicial: leccionObj?.css_base || '/* Escribe tu CSS aquí */\nh1 { color: #38bdf8; text-align: center; }',
-                js_inicial: leccionObj?.js_base || '// Escribe tu JS aquí\nconsole.log("¡Listo para programar!");'
+                codigo_inicial: leccionObj?.codigo_base || '<!-- Empieza a escribir tu HTML aquí -->\n',
+                css_inicial: leccionObj?.css_base || '/* Empieza a escribir tu CSS aquí */\n',
+                js_inicial: leccionObj?.js_base || '// Empieza a escribir tu JS aquí\n'
             };
             renderizarEditorIndependiente(configEditor);
         } else {
@@ -1745,10 +1745,15 @@ function renderizarEditorIndependiente(config) {
         </div>
         <div class="editor-codigo-container">
             <div class="editor-codigo-header">
+                <div class="mac-window-controls">
+                    <span class="mac-dot mac-close"></span>
+                    <span class="mac-dot mac-min"></span>
+                    <span class="mac-dot mac-max"></span>
+                </div>
                 <div class="editor-tabs">
-                    <button class="editor-tab active" data-lang="html"><i class="fa-brands fa-html5"></i> HTML</button>
-                    <button class="editor-tab" data-lang="css"><i class="fa-brands fa-css3-alt"></i> CSS</button>
-                    <button class="editor-tab" data-lang="js"><i class="fa-brands fa-js"></i> JS</button>
+                    <button class="editor-tab active" data-lang="html"><i class="fa-brands fa-html5" style="color:#e34f26"></i> HTML</button>
+                    <button class="editor-tab" data-lang="css"><i class="fa-brands fa-css3-alt" style="color:#264de4"></i> CSS</button>
+                    <button class="editor-tab" data-lang="js"><i class="fa-brands fa-js" style="color:#f7df1e"></i> JS</button>
                 </div>
                 <div class="editor-codigo-actions">
                     <button class="btn-ejecutar-codigo" id="btnEjecutarStandalone">
@@ -1818,6 +1823,18 @@ function renderizarEditorIndependiente(config) {
                     completeSingle: false,
                     hint: CodeMirror.hint[lang === 'js' ? 'javascript' : (lang === 'css' ? 'css' : 'html')]
                 });
+            });
+
+            // Borrar comentarios iniciales al hacer focus (empezar a escribir)
+            editors[lang].on("focus", function(cm) {
+                const val = cm.getValue().trim();
+                if (
+                    val === '<!-- Empieza a escribir tu HTML aquí -->' ||
+                    val === '/* Empieza a escribir tu CSS aquí */' ||
+                    val === '// Empieza a escribir tu JS aquí'
+                ) {
+                    cm.setValue('');
+                }
             });
         }
     });
@@ -3863,4 +3880,79 @@ function renderRankingError(mensaje) {
 
     skeleton.style.display = 'none';
     lista.style.display = 'flex';
+}
+
+/**
+ * Agrega funcionalidad interactiva a los ejemplos de las lecciones.
+ * Permite copiar el código de un bloque <pre> al editor de práctica.
+ */
+function inicializarEjemplosInteractivos() {
+    const container = document.getElementById('leccionContent');
+    if (!container) return;
+
+    // Buscamos todos los bloques pre que no tengan ya el botón
+    const blocks = container.querySelectorAll('pre');
+    blocks.forEach(block => {
+        if (block.querySelector('.btn-probar-ejemplo')) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'btn-probar-ejemplo';
+        btn.title = 'Probar este código en el editor';
+        btn.innerHTML = '<i class="fas fa-play"></i> Probar código';
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const code = block.innerText.trim();
+            const editorSec = document.getElementById('editorIndependienteSeccion');
+
+            if (editorSec) {
+                // Detectar lenguaje de forma simple
+                const isCSS = code.includes('{') && code.includes(':') && !code.includes('<');
+                const lang = isCSS ? 'css' : 'html';
+
+                const textarea = document.getElementById(`standalone-${lang}`);
+                if (textarea && textarea.CodeMirror) {
+                    textarea.CodeMirror.setValue(code);
+                    
+                    // Activar la pestaña correspondiente
+                    const tab = editorSec.querySelector(`.editor-tab[data-lang="${lang}"]`);
+                    if (tab) tab.click();
+
+                    // Ejecutar el código automáticamente
+                    document.getElementById('btnEjecutarStandalone')?.click();
+
+                    // Scroll suave al editor
+                    editorSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    if (typeof mostrarMensajeExito === 'function') {
+                        mostrarMensajeExito('Código copiado al editor de práctica');
+                    }
+                }
+            } else {
+                if (typeof mostrarMensajeBloqueado === 'function') {
+                    mostrarMensajeBloqueado('Esta lección no permite edición en tiempo real.');
+                }
+            }
+        });
+
+        block.appendChild(btn);
+    });
+}
+
+// Observador para detectar cambios en el contenido de la lección
+const lessonObserver = new MutationObserver((mutations) => {
+    mutations.forEach(mutation => {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            inicializarEjemplosInteractivos();
+        }
+    });
+});
+
+const lessonTarget = document.getElementById('leccionContent');
+if (lessonTarget) {
+    lessonObserver.observe(lessonTarget, { childList: true });
+    // Ejecución inicial por si ya hay contenido
+    inicializarEjemplosInteractivos();
 }

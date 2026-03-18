@@ -467,8 +467,8 @@
     line-height: 1.7; /* Aumentado sutilmente */
   }
 
-  /* Bloques de código (pre) */
-  .content pre {
+  /* Bloques de código (pre) dentro de las lecciones - Aislado */
+  #leccionContent pre {
     background: #f4f8fc;
     border: 1.5px solid #d0e3ff;
     padding: 24px;
@@ -479,6 +479,7 @@
     font-size: 15px;
     line-height: 1.5;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    position: relative; /* Para el botón de "Probar" */
   }
 
   .content code {
@@ -2735,10 +2736,10 @@
     margin-top: 50px;
     margin-bottom: 50px;
     background: #ffffff;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+    box-shadow: none;
     animation: editorFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
@@ -2756,83 +2757,90 @@
   .editor-codigo-container {
     display: flex;
     flex-direction: column;
-    background: #0f172a;
+    background: #1e1e1e;
   }
 
   .editor-codigo-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #1e293b;
-    padding: 0 20px;
-    height: 52px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: #252526;
+    padding: 0 16px;
+    height: 48px;
+    border-bottom: 1px solid #1e1e1e;
   }
+
+  /* Controles de ventana tipo macOS */
+  .mac-window-controls {
+    display: flex;
+    gap: 8px;
+    margin-right: 16px;
+  }
+
+  .mac-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .mac-close { background: #ff5f56; }
+  .mac-min { background: #ffbd2e; }
+  .mac-max { background: #27c93f; }
 
   .editor-tabs {
     display: flex;
-    gap: 4px;
     height: 100%;
     align-items: flex-end;
+    flex: 1;
   }
 
   .editor-tab {
     background: transparent;
-    color: #94a3b8;
+    color: #969696;
     border: none;
-    padding: 10px 24px;
-    font-size: 13.5px;
-    font-weight: 600;
+    padding: 0 20px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
-    border-radius: 8px 8px 0 0;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    height: calc(100% - 6px);
+    border-right: 1px solid #1e1e1e;
+    transition: all 0.2s ease;
+    height: 100%;
     display: flex;
     align-items: center;
-    gap: 10px;
-    position: relative;
+    gap: 8px;
   }
 
   .editor-tab:hover {
-    color: #cbd5e1;
-    background: rgba(255, 255, 255, 0.04);
+    background: #2d2d2d;
+    color: #cccccc;
   }
 
   .editor-tab.active {
-    background: #0f172a;
-    color: #38bdf8;
-  }
-
-  .editor-tab.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: #38bdf8;
+    background: #1e1e1e;
+    color: #ffffff;
+    border-top: 2px solid #007acc;
   }
 
   .btn-ejecutar-codigo {
-    background: #10b981;
+    background: #007acc;
     color: #fff;
     border: none;
-    padding: 8px 20px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 10px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+    gap: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 122, 204, 0.2);
   }
 
   .btn-ejecutar-codigo:hover {
-    background: #059669;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(16, 185, 129, 0.35);
+    background: #0098ff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 122, 204, 0.4);
   }
 
   .btn-ejecutar-codigo i {
@@ -2843,12 +2851,13 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     min-height: 500px;
-    background: #0f172a;
+    background: #1e1e1e;
+    position: relative; /* Clave para el centrado absoluto del botón */
   }
 
   .editor-panes-container {
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-    background: #0f172a;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    background: #1e1e1e;
     position: relative;
   }
 
@@ -2894,18 +2903,20 @@
     height: 500px !important;
     font-family: 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace !important;
     font-size: 14.5px !important;
-    background: #0f172a !important;
-    padding: 10px 0;
+    background: #1e1e1e !important;
+    user-select: auto !important;
+    pointer-events: auto !important;
+    -webkit-user-select: auto !important;
   }
 
   .CodeMirror-gutters {
-    background: #0f172a !important;
+    background: #1e1e1e !important;
     border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
     width: 45px;
   }
 
   .CodeMirror-linenumber {
-    color: #475569 !important;
+    color: #858585 !important;
   }
 
   /* Responsividad */

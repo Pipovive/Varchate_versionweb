@@ -2604,7 +2604,7 @@ function mostrarBienvenidaModulos() {
         bienvenidaDiv.innerHTML = `
             <div class="dashboard-hero">
                 <div class="hero-text">
-                    <h2 class="hero-greeting">${getGreeting()}, ${nombre}! 👋</h2>
+                    <h2 class="hero-greeting">${getGreeting()}, ${nombre}!</h2>
                     <p class="hero-subtitle">¡Haz realidad tus proyectos! Bienvenido a VARCHATE, tu lugar para aprender desde cero.</p>
                     <p class="hero-description">
                         Elige un módulo en el <b>menú superior</b> para comenzar tu viaje en la programación.

@@ -319,6 +319,10 @@ async function cargarDatosModulo(moduleSlug) {
             if (leccionContent) {
                 leccionContent.innerHTML = ''; // Limpiar lección anterior
             }
+            
+            // Limpiar secciones dinámicas de ejercicios/editor previos
+            document.getElementById('ejerciciosSeccion')?.remove();
+            document.getElementById('editorIndependienteSeccion')?.remove();
             // ----------------------------------------------------------------
 
             // Actualizar título del módulo en la barra de progreso con el nombre corto
@@ -380,6 +384,7 @@ function actualizarIntroduccionModulo() {
         if (tieneHTML) {
             // Si tiene HTML, lo insertamos directamente
             const div = document.createElement('div');
+            div.className = 'intro-html-content'; // Marca para limpieza posterior
             div.innerHTML = moduloActual.descripcion_larga;
             div.style.marginBottom = '20px';
             div.style.lineHeight = '1.8';
@@ -629,6 +634,9 @@ function renderizarLecciones(lecciones) {
     const lessonsContainer = document.getElementById('lessonsContainer');
 
     if (!sidebar || !lessonsContainer) return;
+    
+    // Limpiar contenedor antes de renderizar lecciones del nuevo módulo
+    lessonsContainer.innerHTML = '';
 
     // Verificar que lecciones sea un array
     if (!Array.isArray(lecciones) || lecciones.length === 0) {
